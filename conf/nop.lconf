@@ -1,0 +1,17 @@
+=extends
+
+
+=rules
+- no-multi-declaration = on
+- unused-variable = off
+- undeclared-variable = off
+- no-prototype = off
+- unused-function = off
+- undeclared-function = off
+
+
+=excludedFiles
+- tutu.c
+
+=recursive
+false

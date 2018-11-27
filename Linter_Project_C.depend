@@ -1,0 +1,35 @@
+# depslib dependency file v1.0
+1542137961 source:d:\esgi\cours langage c\projet_linter\linter_project_c\main.c
+	<stdio.h>
+	<stdlib.h>
+	<time.h>
+	<math.h>
+	<dirent.h>
+	<string.h>
+
+1541504693 source:c:\users\jsvensson\desktop\jerem_notes\esgi_projects\projet_linter\linter_project_c\main.c
+	<stdio.h>
+	<stdlib.h>
+	<time.h>
+	<math.h>
+	<dirent.h>
+	<string.h>
+
+1542211165 source:c:\users\mickey\desktop\linter_project_c very new\main.c
+	<stdio.h>
+	<stdlib.h>
+	<dirent.h>
+	<string.h>
+
+1542877248 source:c:\users\admin\desktop\jeremy_esgi\projet_c\linter_project_c very new\main.c
+	<stdio.h>
+	<stdlib.h>
+	<dirent.h>
+	<string.h>
+
+1543342563 source:d:\esgi\projects\c projects\linter_project\main.c
+	<stdio.h>
+	<stdlib.h>
+	<dirent.h>
+	<string.h>
+

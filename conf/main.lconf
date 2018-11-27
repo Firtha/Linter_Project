@@ -1,0 +1,32 @@
+=extends
+test.lconf
+
+
+=rules
+- array-bracket-eol = on
+- operators-spacing = on
+- comma-spacing = off
+- indent = off
+- comments-header = off
+- max-line-numbers = 25
+- max-file-line-numbers = 10
+- no-trailing-spaces = off
+
+- no-multi-declaration = on
+- unused-variable = off
+- undeclared-variable = off
+- no-prototype = off
+- unused-function = off
+- undeclared-function = off
+
+- variable-assignment-type = on
+- function-parameters-type = on
+
+
+=excludedFiles
+- toto.c
+- leTestAToto.c
+- functions.c
+
+=recursive
+true
