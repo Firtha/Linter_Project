@@ -6,7 +6,9 @@
 typedef struct lineLevels lineLevels;
 struct lineLevels{
     int startLevel;
+    int startingLine;
     int endLevel;
+    int endingLine;
     char*** declaredVars;           // int, float, char, double, long, struct
     int* nbVars;
     lineLevels* sonStructs;
@@ -52,7 +54,7 @@ int dispErrMessg(char* fileName, int typeOf, int dispChx);
 void verifSourceCode(char* path, int* rulesValues);
 void onlyOneDeclar(char* line);
 
-lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, int startLevel, int endLevel);
+lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels motherStruct);
 
 //! Parsing
 //! Mettre en place des structures :
@@ -195,77 +197,76 @@ int lookForType(char* fileContent, int startInd){
 
 
 // Retourne un tableau de valeurs correspondant aux variables
-int* levelVarCount(char* fileContent, int startLevel, int endLevel){
+int* levelVarCount(char* fileContent, lineLevels currStruct){
     char types[6][15] = {"int","float","char","double","long","struct"};
     int* tab = malloc(sizeof(int)*6);
+
     int i;
     int x;
-    int y;
-    int length;
-    int typeFinded = 1;
-    int nbLine = 0;
+    int z;
+
+    int nbErr;
+    int typeFinded;
+
+    int startLevel = currStruct.startLevel;
+    int startingLine = currStruct.startingLine;
+    int endLevel = currStruct.endLevel;
+    int endingLine = currStruct.endingLine;
 
     for(i=0;i<6;i++){
         tab[i] = 0;
     }
 
-    for(i=startLevel;i<endLevel;i++){
-        if(fileContent[i] == ';'){
-            nbLine++;
-        }
-    }
+    //! - Créer un tableau d'entier
+    //!     Ce tableau permettra de stocker le nombre de variables de chaque type (voir tableau types)
+    //! - Repérer les indices de début et fin de structures filles
+    //! - Parcourir entre les intervalles et compter les variables
 
-    y = 0;
-    int* endingLines = malloc(sizeof(int)*nbLine);
-    for(i=startLevel;i<endLevel;i++){
-        if(fileContent[i] == ';'){
-            endingLines[y] = i;
+    int y = startLevel;
+    for(i=startingLine;i<endingLine;i++){
+        int saveInd = y;
+        int isNotFunc = 1;
+        while(fileContent[y] != '\n'){
+            int searchState = 0;
+            if(searchState == 2 && fileContent[y] == '{'){
+                isNotFunc = 0;
+            }
+            if(fileContent[y] == '(' && fileContent[y] == ')'){
+                searchState++;
+            }
             y++;
         }
-    }
-
-    //! Etat actuel :
-    //!     Nombre de lignes
-    //!     Tableau d'indice de fin de chaque ligne A MODIFIER SELON LOGIQUE INDICATEUR (ne doit pas décompter des ';' ou des ";")
-
-    // int stateContainer = 0;
-    // char indicator;
-
-    // Exemple :
-    //
-    // if(indicator == '('){
-    //     indicator = ')';
-    // }
-    // if(fileContent[i] == indicator){
-    //     stateContainer = 0;
-    // }
-
-    //! IMPORTANT : Traitement ligne par ligne (pour repérage du nombre d'indicateur, allocation tableau, ect...)
-    //! Repérage a mettre en place
-    //!     SI char = ' ou " ou { ou ( ou [
-    //!         entier passe de 0 a 1
-    //!         char repéré stocké dans une var
-    //!         entier passe de 1 a 0 quand son "associé" est retrouvé (' et ', " et ", ( et ), { et }, [ et ])
-    //!     Ne pas décompter les chaines retrouvés lorsque entier est a 1
-
-    //! TODO
-    //!     Repérer les débuts et fin de ligne (';') (une déclaration par ligne, plusieurs variables possibles)
-    //!     Faire attention aux déclarations de tableaux (pas plusieurs vars entre [ et ] ou { et }, sur une seule ligne)
-    //!     Garder cet "ordre" de type (déclaré dans le tableau) pour les valeurs et partout ailleurs
-
-    for(i=startLevel;i<endLevel;i++){
-        x = 0;
-        for(y=0;y<6;y++){
-            if(types[y][x] == fileContent[i] && types[y][x-1] == ' '){
-                length = strlen(types[y]);
-                while(x < length && typeFinded){
-                    if(types[y][x] != fileContent[i+x]){
-                        typeFinded = 0;
+        y = saveInd;
+        typeFinded = 0;
+        while(fileContent[y] != '\n'){
+            for(x=0;x<6;x++){
+                z = 0;
+                nbErr = 0;
+                if(types[x][z] == fileContent[y] && (fileContent[y-1] == ' ' || fileContent[y-1] == '\n')){
+                    int length = strlen(types[x]);
+                    while(z < length){
+                        if(fileContent[y+z] != types[x][z]){
+                            nbErr++;
+                        }
+                        z++;
                     }
-                    x++;
+                    if(fileContent[y+z] != '*' && fileContent[y+z] != ' '){
+                        nbErr++;
+                    }
+                    if(nbErr == 0 && isNotFunc){
+                        printf("Type Finded in struct : line %d and type %s\n",i+1,types[x]);
+                        typeFinded = 1;
+                        x = 6;
+                        y = y + z + 1;
+                    }
                 }
             }
+
+            //! A ce stade ci, le type a été repéré de manière sûr.
+
+            y++;
         }
+        y++;
     }
 
     return tab;
@@ -300,7 +301,7 @@ int getNbInsiderLevels(char* fileContent, int startInd, int endInd){
     return nbInsiders;
 }
 
-lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, int startLevel, int endLevel){
+lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels motherStruct){
     lineLevels* primaryStructs = malloc(sizeof(lineLevels)*nbPrimaries);
 
     //! TODO : Ranger les structures dans les bons tableaux
@@ -314,6 +315,9 @@ lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, int startLevel
     int y = 0;
     int nbLine = 0;
     int lineStartInd;
+    int startLevel = motherStruct.startLevel;
+    int endLevel = motherStruct.endLevel;
+    int currLines = motherStruct.startingLine;
 
     for(i=startLevel+1;i<endLevel-1;i++){
         if(fileContent[i] == '\n'){nbLine++;lineStartInd=i+1;}
@@ -321,7 +325,8 @@ lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, int startLevel
             if(lookForType(fileContent, lineStartInd) != 1){
                 onCount = 1;
                 primaryStructs[y].startLevel = i;
-                printf("--- Struct number %d : started at %d\n",y,nbLine+1);
+                primaryStructs[y].startingLine = currLines + nbLine;
+                printf("--- Struct number %d : started at %d\n",y,currLines + nbLine+1);
             }
         }else if(fileContent[i] == '{' && onCount == 1){
             insideBoundaries++;
@@ -332,19 +337,20 @@ lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, int startLevel
         }else if(fileContent[i] == '}' && onCount == 1 && insideBoundaries == 0){
             onCount = 0;
             primaryStructs[y].endLevel = i;
-            printf("--- Struct number %d : ended at %d\n",y,nbLine+1);
+            primaryStructs[y].endingLine = currLines + nbLine;
+            printf("--- Struct number %d : ended at %d\n",y,currLines + nbLine+1);
 
 
             //! TODO
             //!     Appel de différente fonction
             //!         Décompte nombre de vars de chaque type pour allocation (var déclaré sur ce niveau mais pas sur un fils)
-            primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
+            primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
             //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
             //!         Décompte nombre de fils (mais pas petit ou arrière petit fils)
             nbSons = getNbInsiderLevels(fileContent, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
             printf("--- Son Struct number %d : %d sons\n",y,nbSons);
             //!         Récupération des fils dans le tableau sonStructs de la structure primaire
-            primaryStructs[y].sonStructs = getInsidersLevels(fileContent, nbSons, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
+            primaryStructs[y].sonStructs = getInsidersLevels(fileContent, nbSons, primaryStructs[y]);
 
             y++;
         }
@@ -377,6 +383,7 @@ lineLevels* getAllLevels(char* fileContent, int nbPrimaries){
             if(lookForType(fileContent, lineStartInd) != 1){
                 onCount = 1;
                 primaryStructs[y].startLevel = i;
+                primaryStructs[y].startingLine = nbLine;
                 printf("\nStruct number %d : started at %d\n",y,nbLine+1);
             }
         }else if(fileContent[i] == '{' && onCount == 1){
@@ -388,19 +395,20 @@ lineLevels* getAllLevels(char* fileContent, int nbPrimaries){
         }else if(fileContent[i] == '}' && onCount == 1 && insideBoundaries == 0){
             onCount = 0;
             primaryStructs[y].endLevel = i;
+            primaryStructs[y].endingLine = nbLine;
             printf("Struct number %d : ended at %d\n",y,nbLine+1);
 
 
             //! TODO
             //!     Appel de différente fonction
             //!         Décompte nombre de vars de chaque type pour allocation (var déclaré sur ce niveau mais pas sur un fils)
-            primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
+            primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
             //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
             //!         Décompte nombre de fils (mais pas petit ou arrière petit fils)
             nbSons = getNbInsiderLevels(fileContent, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
             printf("Struct number %d : %d sons\n",y,nbSons);
             //!         Récupération des fils dans le tableau sonStructs de la structure primaire
-            primaryStructs[y].sonStructs = getInsidersLevels(fileContent, nbSons, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
+            primaryStructs[y].sonStructs = getInsidersLevels(fileContent, nbSons, primaryStructs[y]);
 
             y++;
         }
