@@ -39,3 +39,9 @@
 	<dirent.h>
 	<string.h>
 
+1543396122 source:c:\users\jsvensson\documents\github\linter_project\main.c
+	<stdio.h>
+	<stdlib.h>
+	<dirent.h>
+	<string.h>
+
