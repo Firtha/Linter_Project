@@ -12,10 +12,14 @@ int main(int argc, char** argv){
     
     int i;
     int y, x;
-    for(i=0;i<15;i++)
-    {
+    for(i=0;i<15;i++){
+        char* oneWord = malloc(sizeof(char)*15);
+        char moreWord = 'c';
+        int rightTest;
         if(undeclaredVar){
             printf("Alriiight...");
+            int testingDeclar;
+            int moreTesting;
         }
         printf("Spacing test"); 
     }
@@ -24,7 +28,8 @@ int main(int argc, char** argv){
 }
 
 int returnVar(){
-    return 1;
+    int returnedVal = 1;
+    return returnedVal;
 }
 
 char* noPrototype(){
@@ -34,7 +39,11 @@ char* noPrototype(){
     int max = strlen(tab);
     
     for(i=0;i<max;i++){
+        int cptTest;
         myTab[i] = tab[i];
+        if(cptTest){
+        	int anotherTry;
+        }
     }
     myTab[max] = '\0';
     
