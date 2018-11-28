@@ -251,7 +251,7 @@ int* levelVarCount(char* fileContent, lineLevels currStruct){
         typeFinded = 0;
         int stop = 1;
         while(fileContent[y] != '\n' && y < endLevel && stop == 1){
-            if(y >= intervals[p*3] && p <= nbSons && nbSons > 0){
+            if(y >= intervals[p*3] && p < nbSons && nbSons > 0){
                 y = intervals[p*3+1];
                 i = intervals[p*3+2] - 1; // Car boucle for donc i++ juste après
                 stop = 0;
@@ -282,13 +282,22 @@ int* levelVarCount(char* fileContent, lineLevels currStruct){
 
             //! A ce stade ci, le type a été repéré de manière sûr.
             //!     La prochaine étape sera de décompter le bon nombre de variables pour chaque ligne et chaque type
-
             y++;
         }
         y++;
     }
 
     return tab;
+}
+
+void freeAllStructs(lineLevels* primaryStructs, int nbStructs){
+    int i;
+    for(i=0;i<nbStructs;i++){
+        if(primaryStructs[i].nbSons > 0){
+            freeAllStructs(primaryStructs[i].sonStructs, primaryStructs[i].nbSons);
+        }
+    }
+    free(primaryStructs);
 }
 
 int getNbInsiderLevels(char* fileContent, int startInd, int endInd){
@@ -761,7 +770,7 @@ void verifSourceCode(char* path, int* rulesValues){
 
 
     printf("\n\n\n");
-    free(primaryStructs);
+    freeAllStructs(primaryStructs, nbPrimaryLevels);
     free(fileContent);
 }
 

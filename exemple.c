@@ -42,7 +42,7 @@ char* noPrototype(){
         int cptTest;
         myTab[i] = tab[i];
         if(cptTest){
-        	int anotherTry;
+            int anotherTry;
         }
     }
     myTab[max] = '\0';
