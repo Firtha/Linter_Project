@@ -196,6 +196,30 @@ int lookForType(char* fileContent, int startInd){
     return 0;
 }
 
+int countVarsOnLine(char* fileContent, int startInd){
+    int nbVars = 0;
+    int i = startInd;
+    int varStarted = 0;
+    int isNotVar = 0;
+
+    while(fileContent[i] != ';'){
+        if(fileContent[i] == '(' || fileContent[i] == '{' || fileContent[i] == '['){
+            isNotVar++;
+        }else if(fileContent[i] == ')' || fileContent[i] == '}' || fileContent[i] == ']'){
+            isNotVar--;
+        }
+        if((isText(fileContent[i]) || fileContent[i] == '*') && (fileContent[i-1] == ' ' || fileContent[i-1] == ',') && isNotVar == 0 && varStarted == 0){
+            varStarted = 1;
+            nbVars++;
+        }
+        if(varStarted && isNotVar == 0 && fileContent[i] == ','){
+            varStarted = 0;
+        }
+        i++;
+    }
+
+    return nbVars;
+}
 
 // Retourne un tableau de valeurs correspondant aux variables
 int* levelVarCount(char* fileContent, lineLevels currStruct){
@@ -207,7 +231,6 @@ int* levelVarCount(char* fileContent, lineLevels currStruct){
     int z;
 
     int nbErr;
-    int typeFinded;
 
     int startLevel = currStruct.startLevel;
     int startingLine = currStruct.startingLine;
@@ -248,7 +271,6 @@ int* levelVarCount(char* fileContent, lineLevels currStruct){
             y++;
         }
         y = saveInd;
-        typeFinded = 0;
         int stop = 1;
         while(fileContent[y] != '\n' && y < endLevel && stop == 1){
             if(y >= intervals[p*3] && p < nbSons && nbSons > 0){
@@ -272,19 +294,31 @@ int* levelVarCount(char* fileContent, lineLevels currStruct){
                         nbErr++;
                     }
                     if(nbErr == 0 && isNotFunc){
-                        printf("Type Finded in struct %d : line %d and type %s\n",currStruct.identifier,i+1,types[x]);
-                        typeFinded = 1;
-                        x = 6;
+                        printf("Type Finded in struct %d : line %d and type %s : ",currStruct.identifier,i+1,types[x]);
+
+                        //! APPEL D'UNE FONCTION RECEVANT L'INDICE DE FIN DE TYPE
+                        //!     LA FONCTION DECOMPTERA LES VAR JUSQU'A TROUVER UN ';'
+                        //!     RENVOI LE NOMBRE DE VAR
+                        //!     ASSOCIER CE NOMBRE AVEC LE TYPE REPERE
+
                         y = y + z + 1;
+
+                        int nbVarsOnLine = countVarsOnLine(fileContent, y - 1);
+                        tab[x] += nbVarsOnLine;
+                        printf("%d vars declared\n",nbVarsOnLine);
+
+                        x = 6;
                     }
                 }
             }
-
-            //! A ce stade ci, le type a été repéré de manière sûr.
-            //!     La prochaine étape sera de décompter le bon nombre de variables pour chaque ligne et chaque type
             y++;
         }
         y++;
+    }
+
+    printf("ALL VARS FOR STRUCT %d :\n",currStruct.identifier);
+    for(i=0;i<6;i++){
+        printf("%s - %d\n",types[i],tab[i]);
     }
 
     return tab;
