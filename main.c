@@ -44,6 +44,15 @@ int isRecursive(char* fileContent);
 int agregateIsRecursive(int nbExtend, char** fileNames);
 void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excludedFiles);
 
+// Fonctions relatives au parsing d'un fichier de code source
+int getNbPrimaryLevels(char* fileContent);
+lineLevels* getAllLevels(char* fileContent, int nbPrimaries);
+
+int getNbInsiderLevels(char* fileContent, int startInd, int endInd);
+lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels motherStruct);
+
+void freeAllStructs(lineLevels* primaryStructs, int nbStructs);
+
 // Fonctions simple de traitement spécifique
 // (isText = vérif code ASCII d'un char)
 // dispErrMessg + isExistingFile = vérif d'existence (et de présence de contenu) et affichage d'erreur en fonction
@@ -54,8 +63,8 @@ int dispErrMessg(char* fileName, int typeOf, int dispChx);
 // Fonctions relatives aux vérifications des règles
 void verifSourceCode(char* path, int* rulesValues);
 void onlyOneDeclar(char* line);
+int lookForType(char* fileContent, int startInd);
 
-lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels motherStruct);
 
 //! Parsing
 //! Mettre en place des structures :
@@ -147,54 +156,6 @@ PARTIE III :
 
 */
 
-int lookForType(char* fileContent, int startInd){
-    char types[6][15] = {"int","float","char","double","long","struct"};
-    int i = startInd;
-    int y;
-    int x;
-    int length;
-    int nbErr;
-    int lineEnd = 0;
-    int quoteFinded = 0;
-
-    while(fileContent[i] != '\n'){
-        x = 0;
-        for(y=0;y<6;y++){
-            nbErr = 0;
-            if(types[y][x] == fileContent[i] && (fileContent[i-1] == ' ' || fileContent[y-1] == '\n' || fileContent[y-1] == '\t')){
-                length = strlen(types[y]);
-                while(x < length && nbErr == 0){
-                    if(types[y][x] != fileContent[i+x]){
-                        nbErr++;
-                    }
-                    if(x == length-1 && nbErr == 0){
-                        if(fileContent[i+x+1] != ' ' && fileContent[i+x+1] != '*'){
-                            nbErr++;
-                        }
-                    }
-                    x++;
-                }
-                if(nbErr == 0){
-                    while(lineEnd == 0){
-                        if(fileContent[i] == '\n'){
-                            lineEnd++;
-                        }else if(fileContent[i] == ';'){
-                            quoteFinded++;
-                        }
-                        i++;
-                    }
-                    if(quoteFinded == 1){
-                        return 1;
-                    }else{
-                        return 2;
-                    }
-                }
-            }
-        }
-        i++;
-    }
-    return 0;
-}
 
 int countVarsOnLine(char* fileContent, int startInd){
     int nbVars = 0;
@@ -322,196 +283,6 @@ int* levelVarCount(char* fileContent, lineLevels currStruct){
     }
 
     return tab;
-}
-
-void freeAllStructs(lineLevels* primaryStructs, int nbStructs){
-    int i;
-    for(i=0;i<nbStructs;i++){
-        if(primaryStructs[i].nbSons > 0){
-            freeAllStructs(primaryStructs[i].sonStructs, primaryStructs[i].nbSons);
-        }
-    }
-    free(primaryStructs);
-}
-
-int getNbInsiderLevels(char* fileContent, int startInd, int endInd){
-    int nbInsiders = 0;
-    int onCount = 0;
-    int insideBoundaries = 0;
-    int nbLine = 0;
-    int lineStartInd;
-    int i;
-
-    for(i=startInd+1;i<endInd-1;i++){
-        if(fileContent[i] == '\n'){nbLine++;lineStartInd=i+1;}
-        if(fileContent[i] == '{' && onCount == 0){
-            if(lookForType(fileContent, lineStartInd) != 1){
-                onCount = 1;
-                nbInsiders++;
-            }
-        }else if(fileContent[i] == '{' && onCount == 1){
-            insideBoundaries++;
-        }
-
-        if(fileContent[i] == '}' && insideBoundaries > 0){
-            insideBoundaries--;
-        }else if(fileContent[i] == '}' && onCount == 1 && insideBoundaries == 0){
-            onCount = 0;
-        }
-    }
-
-    return nbInsiders;
-}
-
-lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels motherStruct){
-    lineLevels* primaryStructs = malloc(sizeof(lineLevels)*nbPrimaries);
-
-    //! TODO : Ranger les structures dans les bons tableaux
-    //!         Primaires dans primaryStructs
-    //!         Secondaires dans le tableau de structure de sa structure parente
-
-    int onCount = 0;
-    int insideBoundaries = 0;
-    int i;
-    int y = 0;
-    int nbLine = 0;
-    int lineStartInd;
-    int startLevel = motherStruct.startLevel;
-    int endLevel = motherStruct.endLevel;
-    int currLines = motherStruct.startingLine;
-    int structID = 1;
-
-    for(i=startLevel+1;i<endLevel-1;i++){
-        if(fileContent[i] == '\n'){nbLine++;lineStartInd=i+1;}
-        if(fileContent[i] == '{' && onCount == 0){
-            if(lookForType(fileContent, lineStartInd) != 1){
-                onCount = 1;
-                primaryStructs[y].startLevel = i;
-                primaryStructs[y].startingLine = currLines + nbLine;
-                primaryStructs[y].identifier = motherStruct.identifier*10+structID;
-                structID++;
-                printf("--- Struct number %d : started at %d\n",primaryStructs[y].identifier,currLines + nbLine+1);
-            }
-        }else if(fileContent[i] == '{' && onCount == 1){
-            insideBoundaries++;
-        }
-
-        if(fileContent[i] == '}' && insideBoundaries > 0){
-            insideBoundaries--;
-        }else if(fileContent[i] == '}' && onCount == 1 && insideBoundaries == 0){
-            onCount = 0;
-            primaryStructs[y].endLevel = i;
-            primaryStructs[y].endingLine = currLines + nbLine;
-            printf("--- Struct number %d : ended at %d\n",primaryStructs[y].identifier,currLines + nbLine+1);
-
-
-            //! TODO
-            //!     Appel de différente fonction
-            //!         Décompte nombre de fils (mais pas petit ou arrière petit fils)
-            primaryStructs[y].nbSons = getNbInsiderLevels(fileContent, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
-            printf("--- Son Struct number %d : %d sons\n",primaryStructs[y].identifier,primaryStructs[y].nbSons);
-            //!         Récupération des fils dans le tableau sonStructs de la structure primaire
-            primaryStructs[y].sonStructs = getInsidersLevels(fileContent, primaryStructs[y].nbSons, primaryStructs[y]);
-            //!         Décompte nombre de vars de chaque type pour allocation (var déclaré sur ce niveau mais pas sur un fils)
-            primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
-            //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
-
-            y++;
-        }
-    }
-
-    return primaryStructs;
-}
-
-// Retourne un tableau de structure (des majeurs, contenant a l'intérieur d'autre structures filles)
-lineLevels* getAllLevels(char* fileContent, int nbPrimaries){
-    lineLevels* primaryStructs = malloc(sizeof(lineLevels)*nbPrimaries);
-
-    //! TODO : Ranger les structures dans les bons tableaux
-    //!         Primaires dans primaryStructs
-    //!         Secondaires dans le tableau de structure de sa structure parente
-
-    int onCount = 0;
-    int insideBoundaries = 0;
-    int lengthFile;
-    int i;
-    int y = 0;
-    int nbLine = 0;
-    int lineStartInd;
-    int structID = 1;
-
-    lengthFile = strlen(fileContent);
-    for(i=0;i<lengthFile;i++){
-        if(fileContent[i] == '\n'){nbLine++;lineStartInd=i+1;}
-        if(fileContent[i] == '{' && onCount == 0){
-            if(lookForType(fileContent, lineStartInd) != 1){
-                onCount = 1;
-                primaryStructs[y].startLevel = i;
-                primaryStructs[y].startingLine = nbLine;
-                primaryStructs[y].identifier = structID;
-                structID++;
-                printf("\nStruct number %d : started at %d\n",primaryStructs[y].identifier,nbLine+1);
-            }
-        }else if(fileContent[i] == '{' && onCount == 1){
-            insideBoundaries++;
-        }
-
-        if(fileContent[i] == '}' && insideBoundaries > 0){
-            insideBoundaries--;
-        }else if(fileContent[i] == '}' && onCount == 1 && insideBoundaries == 0){
-            onCount = 0;
-            primaryStructs[y].endLevel = i;
-            primaryStructs[y].endingLine = nbLine;
-            printf("Struct number %d : ended at %d\n",primaryStructs[y].identifier,nbLine+1);
-
-
-            //! TODO
-            //!     Appel de différente fonction
-            //!         Décompte nombre de fils (mais pas petit ou arrière petit fils)
-            primaryStructs[y].nbSons = getNbInsiderLevels(fileContent, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
-            printf("Struct number %d : %d sons\n",primaryStructs[y].identifier,primaryStructs[y].nbSons);
-            //!         Récupération des fils dans le tableau sonStructs de la structure primaire
-            primaryStructs[y].sonStructs = getInsidersLevels(fileContent, primaryStructs[y].nbSons, primaryStructs[y]);
-            //!         Décompte nombre de vars de chaque type pour allocation (var déclaré sur ce niveau mais pas sur un fils)
-            primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
-            //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
-
-            y++;
-        }
-    }
-
-    return primaryStructs;
-}
-
-int getNbPrimaryLevels(char* fileContent){
-    int nbPrimary = 0;
-    int onCount = 0;
-    int insideBoundaries = 0;
-    int nbLine = 0;
-    int lineStartInd;
-    int lengthFile;
-    int i;
-
-    lengthFile = strlen(fileContent);
-    for(i=0;i<lengthFile;i++){
-        if(fileContent[i] == '\n'){nbLine++;lineStartInd=i+1;}
-        if(fileContent[i] == '{' && onCount == 0){
-            if(lookForType(fileContent, lineStartInd) != 1){
-                onCount = 1;
-            }
-        }else if(fileContent[i] == '{' && onCount == 1){
-            insideBoundaries++;
-        }
-
-        if(fileContent[i] == '}' && insideBoundaries > 0){
-            insideBoundaries--;
-        }else if(fileContent[i] == '}' && onCount == 1 && insideBoundaries == 0){
-            onCount = 0;
-            nbPrimary++;
-        }
-    }
-
-    return nbPrimary;
 }
 
 int main(int argc, char **argv)
@@ -726,6 +497,16 @@ int main(int argc, char **argv)
     return 0;
 }
 
+void freeAllStructs(lineLevels* primaryStructs, int nbStructs){
+    int i;
+    for(i=0;i<nbStructs;i++){
+        if(primaryStructs[i].nbSons > 0){
+            freeAllStructs(primaryStructs[i].sonStructs, primaryStructs[i].nbSons);
+        }
+    }
+    free(primaryStructs);
+}
+
 //! LA FONCTION DEVRA RECEVOIR TOUTES LES INFOS DE CONFIG EN PARAMETRE AFIN D'EFFECTUER TOUTES LES VERIFS ELLE MEME
 void verifSourceCode(char* path, int* rulesValues){
     char* fileContent;
@@ -806,6 +587,235 @@ void verifSourceCode(char* path, int* rulesValues){
     printf("\n\n\n");
     freeAllStructs(primaryStructs, nbPrimaryLevels);
     free(fileContent);
+}
+
+int getNbInsiderLevels(char* fileContent, int startInd, int endInd){
+    int nbInsiders = 0;
+    int onCount = 0;
+    int insideBoundaries = 0;
+    int nbLine = 0;
+    int lineStartInd;
+    int i;
+
+    for(i=startInd+1;i<endInd-1;i++){
+        if(fileContent[i] == '\n'){nbLine++;lineStartInd=i+1;}
+        if(fileContent[i] == '{' && onCount == 0){
+            if(lookForType(fileContent, lineStartInd) != 1){
+                onCount = 1;
+                nbInsiders++;
+            }
+        }else if(fileContent[i] == '{' && onCount == 1){
+            insideBoundaries++;
+        }
+
+        if(fileContent[i] == '}' && insideBoundaries > 0){
+            insideBoundaries--;
+        }else if(fileContent[i] == '}' && onCount == 1 && insideBoundaries == 0){
+            onCount = 0;
+        }
+    }
+
+    return nbInsiders;
+}
+
+lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels motherStruct){
+    lineLevels* primaryStructs = malloc(sizeof(lineLevels)*nbPrimaries);
+
+    //! TODO : Ranger les structures dans les bons tableaux
+    //!         Primaires dans primaryStructs
+    //!         Secondaires dans le tableau de structure de sa structure parente
+
+    int onCount = 0;
+    int insideBoundaries = 0;
+    int i;
+    int y = 0;
+    int nbLine = 0;
+    int lineStartInd;
+    int startLevel = motherStruct.startLevel;
+    int endLevel = motherStruct.endLevel;
+    int currLines = motherStruct.startingLine;
+    int structID = 1;
+
+    for(i=startLevel+1;i<endLevel-1;i++){
+        if(fileContent[i] == '\n'){nbLine++;lineStartInd=i+1;}
+        if(fileContent[i] == '{' && onCount == 0){
+            if(lookForType(fileContent, lineStartInd) != 1){
+                onCount = 1;
+                primaryStructs[y].startLevel = i;
+                primaryStructs[y].startingLine = currLines + nbLine;
+                primaryStructs[y].identifier = motherStruct.identifier*10+structID;
+                structID++;
+                printf("--- Struct number %d : started at %d\n",primaryStructs[y].identifier,currLines + nbLine+1);
+            }
+        }else if(fileContent[i] == '{' && onCount == 1){
+            insideBoundaries++;
+        }
+
+        if(fileContent[i] == '}' && insideBoundaries > 0){
+            insideBoundaries--;
+        }else if(fileContent[i] == '}' && onCount == 1 && insideBoundaries == 0){
+            onCount = 0;
+            primaryStructs[y].endLevel = i;
+            primaryStructs[y].endingLine = currLines + nbLine;
+            printf("--- Struct number %d : ended at %d\n",primaryStructs[y].identifier,currLines + nbLine+1);
+
+
+            //! TODO
+            //!     Appel de différente fonction
+            //!         Décompte nombre de fils (mais pas petit ou arrière petit fils)
+            primaryStructs[y].nbSons = getNbInsiderLevels(fileContent, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
+            printf("--- Son Struct number %d : %d sons\n",primaryStructs[y].identifier,primaryStructs[y].nbSons);
+            //!         Récupération des fils dans le tableau sonStructs de la structure primaire
+            primaryStructs[y].sonStructs = getInsidersLevels(fileContent, primaryStructs[y].nbSons, primaryStructs[y]);
+            //!         Décompte nombre de vars de chaque type pour allocation (var déclaré sur ce niveau mais pas sur un fils)
+            primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
+            //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
+
+            y++;
+        }
+    }
+
+    return primaryStructs;
+}
+
+// Retourne un tableau de structure (des majeurs, contenant a l'intérieur d'autre structures filles)
+lineLevels* getAllLevels(char* fileContent, int nbPrimaries){
+    lineLevels* primaryStructs = malloc(sizeof(lineLevels)*nbPrimaries);
+
+    //! TODO : Ranger les structures dans les bons tableaux
+    //!         Primaires dans primaryStructs
+    //!         Secondaires dans le tableau de structure de sa structure parente
+
+    int onCount = 0;
+    int insideBoundaries = 0;
+    int lengthFile;
+    int i;
+    int y = 0;
+    int nbLine = 0;
+    int lineStartInd;
+    int structID = 1;
+
+    lengthFile = strlen(fileContent);
+    for(i=0;i<lengthFile;i++){
+        if(fileContent[i] == '\n'){nbLine++;lineStartInd=i+1;}
+        if(fileContent[i] == '{' && onCount == 0){
+            if(lookForType(fileContent, lineStartInd) != 1){
+                onCount = 1;
+                primaryStructs[y].startLevel = i;
+                primaryStructs[y].startingLine = nbLine;
+                primaryStructs[y].identifier = structID;
+                structID++;
+                printf("\nStruct number %d : started at %d\n",primaryStructs[y].identifier,nbLine+1);
+            }
+        }else if(fileContent[i] == '{' && onCount == 1){
+            insideBoundaries++;
+        }
+
+        if(fileContent[i] == '}' && insideBoundaries > 0){
+            insideBoundaries--;
+        }else if(fileContent[i] == '}' && onCount == 1 && insideBoundaries == 0){
+            onCount = 0;
+            primaryStructs[y].endLevel = i;
+            primaryStructs[y].endingLine = nbLine;
+            printf("Struct number %d : ended at %d\n",primaryStructs[y].identifier,nbLine+1);
+
+
+            //! TODO
+            //!     Appel de différente fonction
+            //!         Décompte nombre de fils (mais pas petit ou arrière petit fils)
+            primaryStructs[y].nbSons = getNbInsiderLevels(fileContent, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
+            printf("Struct number %d : %d sons\n",primaryStructs[y].identifier,primaryStructs[y].nbSons);
+            //!         Récupération des fils dans le tableau sonStructs de la structure primaire
+            primaryStructs[y].sonStructs = getInsidersLevels(fileContent, primaryStructs[y].nbSons, primaryStructs[y]);
+            //!         Décompte nombre de vars de chaque type pour allocation (var déclaré sur ce niveau mais pas sur un fils)
+            primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
+            //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
+
+            y++;
+        }
+    }
+
+    return primaryStructs;
+}
+
+int getNbPrimaryLevels(char* fileContent){
+    int nbPrimary = 0;
+    int onCount = 0;
+    int insideBoundaries = 0;
+    int nbLine = 0;
+    int lineStartInd;
+    int lengthFile;
+    int i;
+
+    lengthFile = strlen(fileContent);
+    for(i=0;i<lengthFile;i++){
+        if(fileContent[i] == '\n'){nbLine++;lineStartInd=i+1;}
+        if(fileContent[i] == '{' && onCount == 0){
+            if(lookForType(fileContent, lineStartInd) != 1){
+                onCount = 1;
+            }
+        }else if(fileContent[i] == '{' && onCount == 1){
+            insideBoundaries++;
+        }
+
+        if(fileContent[i] == '}' && insideBoundaries > 0){
+            insideBoundaries--;
+        }else if(fileContent[i] == '}' && onCount == 1 && insideBoundaries == 0){
+            onCount = 0;
+            nbPrimary++;
+        }
+    }
+
+    return nbPrimary;
+}
+
+int lookForType(char* fileContent, int startInd){
+    char types[6][15] = {"int","float","char","double","long","struct"};
+    int i = startInd;
+    int y;
+    int x;
+    int length;
+    int nbErr;
+    int lineEnd = 0;
+    int quoteFinded = 0;
+
+    while(fileContent[i] != '\n'){
+        x = 0;
+        for(y=0;y<6;y++){
+            nbErr = 0;
+            if(types[y][x] == fileContent[i] && (fileContent[i-1] == ' ' || fileContent[y-1] == '\n' || fileContent[y-1] == '\t')){
+                length = strlen(types[y]);
+                while(x < length && nbErr == 0){
+                    if(types[y][x] != fileContent[i+x]){
+                        nbErr++;
+                    }
+                    if(x == length-1 && nbErr == 0){
+                        if(fileContent[i+x+1] != ' ' && fileContent[i+x+1] != '*'){
+                            nbErr++;
+                        }
+                    }
+                    x++;
+                }
+                if(nbErr == 0){
+                    while(lineEnd == 0){
+                        if(fileContent[i] == '\n'){
+                            lineEnd++;
+                        }else if(fileContent[i] == ';'){
+                            quoteFinded++;
+                        }
+                        i++;
+                    }
+                    if(quoteFinded == 1){
+                        return 1;
+                    }else{
+                        return 2;
+                    }
+                }
+            }
+        }
+        i++;
+    }
+    return 0;
 }
 
 char* getFileContent(char* path){
