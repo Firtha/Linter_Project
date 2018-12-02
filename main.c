@@ -51,6 +51,12 @@ lineLevels* getAllLevels(char* fileContent, int nbPrimaries);
 int getNbInsiderLevels(char* fileContent, int startInd, int endInd);
 lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels motherStruct);
 
+int* levelVarCount(char* fileContent, lineLevels currStruct);
+int countVarsOnLine(char* fileContent, int startInd);
+
+char*** levelVarStorage(char* fileContent, lineLevels currStruct);
+char** extractVarsOfLine(char* fileContent, int startInd, int nbVarsOnLine, int lineNumber);
+
 void freeAllStructs(lineLevels* primaryStructs, int nbStructs);
 
 // Fonctions simple de traitement spécifique
@@ -155,135 +161,6 @@ PARTIE III :
 - function-parameters-type = off
 
 */
-
-
-int countVarsOnLine(char* fileContent, int startInd){
-    int nbVars = 0;
-    int i = startInd;
-    int varStarted = 0;
-    int isNotVar = 0;
-
-    while(fileContent[i] != ';'){
-        if(fileContent[i] == '(' || fileContent[i] == '{' || fileContent[i] == '['){
-            isNotVar++;
-        }else if(fileContent[i] == ')' || fileContent[i] == '}' || fileContent[i] == ']'){
-            isNotVar--;
-        }
-        if((isText(fileContent[i]) || fileContent[i] == '*') && (fileContent[i-1] == ' ' || fileContent[i-1] == ',') && isNotVar == 0 && varStarted == 0){
-            varStarted = 1;
-            nbVars++;
-        }
-        if(varStarted && isNotVar == 0 && fileContent[i] == ','){
-            varStarted = 0;
-        }
-        i++;
-    }
-
-    return nbVars;
-}
-
-// Retourne un tableau de valeurs correspondant aux variables
-int* levelVarCount(char* fileContent, lineLevels currStruct){
-    char types[6][15] = {"int","float","char","double","long","struct"};
-    int* tab = malloc(sizeof(int)*6);
-
-    int i;
-    int x;
-    int z;
-
-    int nbErr;
-
-    int startLevel = currStruct.startLevel;
-    int startingLine = currStruct.startingLine;
-    int endLevel = currStruct.endLevel;
-    int endingLine = currStruct.endingLine;
-
-    for(i=0;i<6;i++){
-        tab[i] = 0;
-    }
-
-    int nbSons = currStruct.nbSons;
-    //! Récupère le nombre de valeurs pour définir les intervalles
-    //!     Pour un fils : début et fin, associer ca avec début et fin du niveau parent pour définir intervalles
-    int* intervals = malloc(sizeof(int)*nbSons*3);
-    printf("\nTest nbSons for struct %d : %d\n",currStruct.identifier,nbSons);
-    if(nbSons > 0){
-        for(i=0;i<nbSons;i++){
-            intervals[i*3] = currStruct.sonStructs[i].startLevel;
-            intervals[i*3+1] = currStruct.sonStructs[i].endLevel;
-            intervals[i*3+2] = currStruct.sonStructs[i].endingLine;
-            printf("Test Values for son %d : start - %d, end - %d and endingLine - %d\n",currStruct.identifier,intervals[i*3],intervals[i*3+1],intervals[i*3+2]+1);
-        }
-    }
-    int p = 0;
-
-    int y = startLevel;
-    for(i=startingLine;i<endingLine;i++){
-        int saveInd = y;
-        int isNotFunc = 1;
-        while(fileContent[y] != '\n'){
-            int searchState = 0;
-            if(searchState == 2 && fileContent[y] == '{'){
-                isNotFunc = 0;
-            }
-            if(fileContent[y] == '(' || fileContent[y] == ')'){
-                searchState++;
-            }
-            y++;
-        }
-        y = saveInd;
-        int stop = 1;
-        while(fileContent[y] != '\n' && y < endLevel && stop == 1){
-            if(y >= intervals[p*3] && p < nbSons && nbSons > 0){
-                y = intervals[p*3+1];
-                i = intervals[p*3+2] - 1; // Car boucle for donc i++ juste après
-                stop = 0;
-                p++;
-            }
-            for(x=0;x<6;x++){
-                z = 0;
-                nbErr = 0;
-                if(types[x][z] == fileContent[y] && (fileContent[y-1] == ' ' || fileContent[y-1] == '\n' || fileContent[y-1] == '\t')){
-                    int length = strlen(types[x]);
-                    while(z < length){
-                        if(fileContent[y+z] != types[x][z]){
-                            nbErr++;
-                        }
-                        z++;
-                    }
-                    if(fileContent[y+z] != '*' && fileContent[y+z] != ' '){
-                        nbErr++;
-                    }
-                    if(nbErr == 0 && isNotFunc){
-                        printf("Type Finded in struct %d : line %d and type %s : ",currStruct.identifier,i+1,types[x]);
-
-                        //! APPEL D'UNE FONCTION RECEVANT L'INDICE DE FIN DE TYPE
-                        //!     LA FONCTION DECOMPTERA LES VAR JUSQU'A TROUVER UN ';'
-                        //!     RENVOI LE NOMBRE DE VAR
-                        //!     ASSOCIER CE NOMBRE AVEC LE TYPE REPERE
-
-                        y = y + z + 1;
-
-                        int nbVarsOnLine = countVarsOnLine(fileContent, y - 1);
-                        tab[x] += nbVarsOnLine;
-                        printf("%d vars declared\n",nbVarsOnLine);
-
-                        x = 6;
-                    }
-                }
-            }
-            y++;
-        }
-        y++;
-    }
-
-    printf("ALL VARS FOR STRUCT %d :\n",currStruct.identifier);
-    for(i=0;i<6;i++){
-        printf("%s - %d\n",types[i],tab[i]);
-    }
-
-    return tab;
-}
 
 int main(int argc, char **argv)
 {
@@ -589,6 +466,316 @@ void verifSourceCode(char* path, int* rulesValues){
     free(fileContent);
 }
 
+int countVarsOnLine(char* fileContent, int startInd){
+    int nbVars = 0;
+    int i = startInd;
+    int varStarted = 0;
+    int isNotVar = 0;
+    int simpleQuoteOpened = 0;
+    int doubleQuoteOpened = 0;
+
+    while(fileContent[i] != ';'){
+        if(fileContent[i] == 34){
+            if(simpleQuoteOpened == 0){
+                simpleQuoteOpened = 1;
+            }else{
+                simpleQuoteOpened = 0;
+            }
+        }else if(fileContent[i] == 44){
+            if(doubleQuoteOpened == 0){
+                doubleQuoteOpened = 1;
+            }else{
+                doubleQuoteOpened = 0;
+            }
+        }
+        if(fileContent[i] == '(' || fileContent[i] == '{' || fileContent[i] == '['){
+            isNotVar++;
+        }else if(fileContent[i] == ')' || fileContent[i] == '}' || fileContent[i] == ']'){
+            isNotVar--;
+        }
+        if((isText(fileContent[i]) || fileContent[i] == '*') && (fileContent[i-1] == ' ' || fileContent[i-1] == ',') && isNotVar == 0 && varStarted == 0 && simpleQuoteOpened == 0 && doubleQuoteOpened == 0){
+            varStarted = 1;
+            nbVars++;
+        }
+        if(varStarted && isNotVar == 0 && fileContent[i] == ','){
+            varStarted = 0;
+        }
+        i++;
+    }
+
+    return nbVars;
+}
+
+char** extractVarsOfLine(char* fileContent, int startInd, int nbVarsOnLine, int lineNumber){
+    int indexVars = 0;
+
+    int i;
+    int x;
+
+    int isNotVar = 0;
+    int simpleQuoteOpened = 0;
+    int doubleQuoteOpened = 0;
+
+    char** varsOnLine = malloc(sizeof(char*)*nbVarsOnLine);
+    for(i=0;i<nbVarsOnLine;i++){
+        varsOnLine[i] = malloc(sizeof(char)*50);
+    }
+
+    i = startInd;
+    while(fileContent[i] != ';'){
+        if(fileContent[i] == 34){
+            if(simpleQuoteOpened == 0){
+                simpleQuoteOpened = 1;
+            }else{
+                simpleQuoteOpened = 0;
+            }
+        }else if(fileContent[i] == 44){
+            if(doubleQuoteOpened == 0){
+                doubleQuoteOpened = 1;
+            }else{
+                doubleQuoteOpened = 0;
+            }
+        }
+        if(fileContent[i] == '(' || fileContent[i] == '{' || fileContent[i] == '['){
+            isNotVar++;
+        }else if(fileContent[i] == ')' || fileContent[i] == '}' || fileContent[i] == ']'){
+            isNotVar--;
+        }
+
+        if((isText(fileContent[i]) || fileContent[i] == '*') && (fileContent[i-1] == ' ' || fileContent[i-1] == ',') && isNotVar == 0 && simpleQuoteOpened == 0 && doubleQuoteOpened == 0 && indexVars < nbVarsOnLine){
+            x = 0;
+            while(isText(fileContent[i+x]) || fileContent[i+x] == '*'){
+                varsOnLine[indexVars][x] = fileContent[i+x];
+                x++;
+            }
+            varsOnLine[indexVars][x] = '\0';
+            char indicateLine[15];
+            sprintf(indicateLine,"-%d",lineNumber);
+            strcat(varsOnLine[indexVars],indicateLine);
+
+            indexVars++;
+            i = i + x - 1;
+        }
+        i++;
+    }
+
+    return varsOnLine;
+}
+
+// Retourne un tableau de valeurs correspondant aux variables
+int* levelVarCount(char* fileContent, lineLevels currStruct){
+    char types[6][15] = {"int","float","char","double","long","struct"};
+    int* tab = malloc(sizeof(int)*6);
+
+    int i;
+    int x;
+    int z;
+
+    int nbErr;
+
+    int startLevel = currStruct.startLevel;
+    int startingLine = currStruct.startingLine;
+    int endLevel = currStruct.endLevel;
+    int endingLine = currStruct.endingLine;
+
+    for(i=0;i<6;i++){
+        tab[i] = 0;
+    }
+
+    int nbSons = currStruct.nbSons;
+    //! Récupère le nombre de valeurs pour définir les intervalles
+    //!     Pour un fils : début et fin, associer ca avec début et fin du niveau parent pour définir intervalles
+    int* intervals = malloc(sizeof(int)*nbSons*3);
+    if(nbSons > 0){
+        for(i=0;i<nbSons;i++){
+            intervals[i*3] = currStruct.sonStructs[i].startLevel;
+            intervals[i*3+1] = currStruct.sonStructs[i].endLevel;
+            intervals[i*3+2] = currStruct.sonStructs[i].endingLine;
+        }
+    }
+    int p = 0;
+
+    int y = startLevel;
+    for(i=startingLine;i<endingLine;i++){
+        int saveInd = y;
+        int isNotFunc = 1;
+        while(fileContent[y] != '\n'){
+            int searchState = 0;
+            if(searchState == 2 && fileContent[y] == '{'){
+                isNotFunc = 0;
+            }
+            if(fileContent[y] == '(' || fileContent[y] == ')'){
+                searchState++;
+            }
+            y++;
+        }
+        y = saveInd;
+        int stop = 1;
+        while(fileContent[y] != '\n' && y < endLevel && stop == 1){
+            if(y >= intervals[p*3] && p < nbSons && nbSons > 0){
+                y = intervals[p*3+1];
+                i = intervals[p*3+2] - 1; // Car boucle for donc i++ juste après
+                stop = 0;
+                p++;
+            }
+            for(x=0;x<6;x++){
+                z = 0;
+                nbErr = 0;
+                if(types[x][z] == fileContent[y] && (fileContent[y-1] == ' ' || fileContent[y-1] == '\n' || fileContent[y-1] == '\t')){
+                    int length = strlen(types[x]);
+                    while(z < length){
+                        if(fileContent[y+z] != types[x][z]){
+                            nbErr++;
+                        }
+                        z++;
+                    }
+                    if(fileContent[y+z] != '*' && fileContent[y+z] != ' '){
+                        nbErr++;
+                    }
+                    if(nbErr == 0 && isNotFunc){
+
+                        y = y + z + 1;
+
+                        int nbVarsOnLine = countVarsOnLine(fileContent, y - 1);
+                        tab[x] += nbVarsOnLine;
+
+                        x = 6;
+                    }
+                }
+            }
+            y++;
+        }
+        y++;
+    }
+
+    return tab;
+}
+
+// Retourne un tableau de valeurs correspondant aux variables
+char*** levelVarStorage(char* fileContent, lineLevels currStruct){
+    char types[6][15] = {"int","float","char","double","long","struct"};
+
+    int i;
+    int x;
+    int z;
+
+    int nbVars[6];
+    for(i=0;i<6;i++){
+        nbVars[i] = currStruct.nbVars[i];
+    }
+
+    int currNbVars[6] = {0,0,0,0,0,0};
+
+    char*** structVars = malloc(sizeof(char**)*6);
+    //! ALLOUER LE TABLEAU 3 DIMENSIONS
+    for(i=0;i<6;i++){
+        structVars[i] = malloc(sizeof(char*)*nbVars[i]);
+
+        for(x=0;x<nbVars[i];x++){
+            structVars[i][x] = malloc(sizeof(char)*50);
+        }
+    }
+
+    int nbErr;
+    int nbVarsOnLine;
+
+    int startLevel = currStruct.startLevel;
+    int startingLine = currStruct.startingLine;
+    int endLevel = currStruct.endLevel;
+    int endingLine = currStruct.endingLine;
+
+    int nbSons = currStruct.nbSons;
+    //! Récupère le nombre de valeurs pour définir les intervalles
+    //!     Pour un fils : début et fin, associer ca avec début et fin du niveau parent pour définir intervalles
+    int* intervals = malloc(sizeof(int)*nbSons*3);
+    if(nbSons > 0){
+        for(i=0;i<nbSons;i++){
+            intervals[i*3] = currStruct.sonStructs[i].startLevel;
+            intervals[i*3+1] = currStruct.sonStructs[i].endLevel;
+            intervals[i*3+2] = currStruct.sonStructs[i].endingLine;
+        }
+    }
+    int p = 0;
+
+    int y = startLevel;
+    for(i=startingLine;i<endingLine;i++){
+        int saveInd = y;
+        int isNotFunc = 1;
+        while(fileContent[y] != '\n'){
+            int searchState = 0;
+            if(searchState == 2 && fileContent[y] == '{'){
+                isNotFunc = 0;
+            }
+            if(fileContent[y] == '(' || fileContent[y] == ')'){
+                searchState++;
+            }
+            y++;
+        }
+        y = saveInd;
+        int stop = 1;
+        while(fileContent[y] != '\n' && y < endLevel && stop == 1){
+            if(y >= intervals[p*3] && p < nbSons && nbSons > 0){
+                y = intervals[p*3+1];
+                i = intervals[p*3+2] - 1; // Car boucle for donc i++ juste après
+                stop = 0;
+                p++;
+            }
+            for(x=0;x<6;x++){
+                z = 0;
+                nbErr = 0;
+                if(types[x][z] == fileContent[y] && (fileContent[y-1] == ' ' || fileContent[y-1] == '\n' || fileContent[y-1] == '\t')){
+                    int length = strlen(types[x]);
+                    while(z < length){
+                        if(fileContent[y+z] != types[x][z]){
+                            nbErr++;
+                        }
+                        z++;
+                    }
+                    if(fileContent[y+z] != '*' && fileContent[y+z] != ' '){
+                        nbErr++;
+                    }
+                    if(nbErr == 0 && isNotFunc){
+
+                        y = y + z + 1;
+
+                        nbVarsOnLine = countVarsOnLine(fileContent, y - 1);
+
+                        char** tmpSavedVars = malloc(sizeof(char*) * nbVarsOnLine);
+                        int h;
+                        for(h=0;h<nbVarsOnLine;h++){
+                            tmpSavedVars[h] = malloc(sizeof(char)*50);
+                        }
+
+                        tmpSavedVars = extractVarsOfLine(fileContent, y - 1, nbVarsOnLine, i);
+
+                        for(h=0;h<nbVarsOnLine;h++){
+                            strcpy(structVars[x][currNbVars[x]],tmpSavedVars[h]);
+                            currNbVars[x]++;
+
+                            free(tmpSavedVars[h]);
+                        }
+                        free(tmpSavedVars);
+                        x = 6;
+                    }
+                }
+            }
+            y++;
+        }
+        y++;
+    }
+
+    printf("\n\nStruct %d ALL VARS :\n",currStruct.identifier);
+    for(i=0;i<6;i++){
+        printf("VARS OF %s = %d :\n",types[i],nbVars[i]);
+        for(y=0;y<nbVars[i];y++){
+            printf("----> %s\n",structVars[i][y]);
+        }
+    }
+    printf("\n");
+
+    return structVars;
+}
+
 int getNbInsiderLevels(char* fileContent, int startInd, int endInd){
     int nbInsiders = 0;
     int onCount = 0;
@@ -670,6 +857,7 @@ lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels mot
             //!         Décompte nombre de vars de chaque type pour allocation (var déclaré sur ce niveau mais pas sur un fils)
             primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
             //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
+            primaryStructs[y].declaredVars = levelVarStorage(fileContent, primaryStructs[y]);
 
             y++;
         }
@@ -730,6 +918,7 @@ lineLevels* getAllLevels(char* fileContent, int nbPrimaries){
             //!         Décompte nombre de vars de chaque type pour allocation (var déclaré sur ce niveau mais pas sur un fils)
             primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
             //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
+            primaryStructs[y].declaredVars = levelVarStorage(fileContent, primaryStructs[y]);
 
             y++;
         }
