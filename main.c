@@ -42,7 +42,7 @@ char** agregateConfExcluded(int nbExtend, char** fileNames, int nbFilesExcluded)
 // Récupération de la valeur du critère récursif dans les fichiers de configuration
 int isRecursive(char* fileContent);
 int agregateIsRecursive(int nbExtend, char** fileNames);
-void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excludedFiles);
+void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excludedFiles, int typeExec, int* rulesValues);
 
 // Fonctions relatives au parsing d'un fichier de code source
 int getNbPrimaryLevels(char* fileContent);
@@ -299,36 +299,26 @@ int main(int argc, char **argv)
             printf("1 - Execution du Linter selon sa configuration\n");
             printf("2 - Lister les fichiers cibler par le Linter\n");
             printf("3 - Execution du Linter sur un fichier test : 'exemple.c'\n");
-            printf("4 - Execution du Linter sur un dossier test : 'testFold'\n");
             printf("0 - QUITTER\n>>");
             userChx = -1;
-            while(userChx < 0 || userChx > 4){
+            while(userChx < 0 || userChx > 3){
                 scanf("%d",&userChx);
             }
 
             switch(userChx){
             case 1:
                 system("cls");
-                printf("\n***\n***\n****EN COURS DE DEVELOPPEMENT*****\n***\n***\n");
-                system("pause");
+                dispDirContent(".", recursiveState, nbFileExcluded, excludedFiles, 1, rulesValues);
                 break;
 
             case 2:
                 system("cls");
-                dispDirContent(".", recursiveState, nbFileExcluded, excludedFiles);
-                system("pause");
+                dispDirContent(".", recursiveState, nbFileExcluded, excludedFiles, 0, rulesValues);
                 break;
 
             case 3:
                 system("cls");
                 verifSourceCode("exemple.c", rulesValues);
-                system("pause");
-                break;
-
-            case 4:
-                system("cls");
-                printf("\n***\n***\n****EN COURS DE DEVELOPPEMENT*****\n***\n***\n");
-                system("pause");
                 break;
 
 
@@ -464,6 +454,8 @@ void verifSourceCode(char* path, int* rulesValues){
     printf("\n\n\n");
     freeAllStructs(primaryStructs, nbPrimaryLevels);
     free(fileContent);
+
+    system("pause");
 }
 
 int countVarsOnLine(char* fileContent, int startInd){
@@ -1453,7 +1445,7 @@ char** agregateConfExcluded(int nbExtend, char** fileNames, int nbFilesExcluded)
     return listOfFiles;
 }
 
-void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excludedFiles){
+void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excludedFiles, int typeExec, int* rulesValues){
     DIR * rep = opendir(path);
     int lengthName;
     int i;
@@ -1498,21 +1490,37 @@ void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excl
 
                     if(isCFile > 0){
                         if(isExcluded > 0){
-                            printf("File Excluded From %s : %s\n", tellFolder, ent->d_name);
+                            if(typeExec == 0){
+                                printf("File Excluded From %s : %s\n", tellFolder, ent->d_name);
+                            }
                         }else{
-                            printf("File NOTExcluded From %s : %s\n", tellFolder, ent->d_name);
+                            if(typeExec == 0){
+                                printf("File NOTExcluded From %s : %s\n", tellFolder, ent->d_name);
+                            }else{
+                                char tmpFilePath[150] = "";
+                                if(strcmp(tellFolder,"Src") != 0){
+                                    strcat(tmpFilePath,tellFolder);
+                                    strcat(tmpFilePath,"/");
+                                }
+                                strcat(tmpFilePath,ent->d_name);
+                                system("cls");
+                                printf("Linter in progress\nFile %s, push any key to continue.\n",tmpFilePath);
+                                system("pause");
+                                system("cls");
+                                verifSourceCode(tmpFilePath, rulesValues);
+                            }
                         }
                     }
                 }else if(searchType){
                     if(iniPos){
-                        dispDirContent(ent->d_name, 1, nbFilesExcluded, excludedFiles);
+                        dispDirContent(ent->d_name, 1, nbFilesExcluded, excludedFiles, typeExec, rulesValues);
                     }else{
                         char newPath[256] = "";
                         strcpy(newPath, path);
                         strcat(newPath, "/");
                         strcat(newPath, ent->d_name);
 
-                        dispDirContent(newPath, 1, nbFilesExcluded, excludedFiles);
+                        dispDirContent(newPath, 1, nbFilesExcluded, excludedFiles, typeExec, rulesValues);
                     }
                 }
             }

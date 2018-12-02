@@ -27,6 +27,7 @@ test.lconf
 - toto.c
 - leTestAToto.c
 - functions.c
+- main.c
 
 =recursive
 true
