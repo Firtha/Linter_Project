@@ -68,7 +68,6 @@ int dispErrMessg(char* fileName, int typeOf, int dispChx);
 
 // Fonctions relatives aux vérifications des règles
 void verifSourceCode(char* path, int* rulesValues);
-void onlyOneDeclar(char* line);
 int lookForType(char* fileContent, int startInd);
 
 
@@ -161,6 +160,61 @@ PARTIE III :
 - function-parameters-type = off
 
 */
+
+int getLineOfVar(char* varName){
+    int i = 0;
+    int length = strlen(varName);
+
+    while(varName[i] != '-'){
+        i++;
+    }
+    i++;
+
+    int result = 0;
+    while(varName[i] != '\0' && i < length){
+        result = result * 10;
+        result += varName[i] - 48;
+        i++;
+    }
+
+    return result;
+}
+
+int* structNbVarsOnLines(lineLevels currStruct, int* tabOfLines){
+    int i;
+    int y;
+    char*** structVars = currStruct.declaredVars;
+    int* nbVars = currStruct.nbVars;
+    int nbSons = currStruct.nbSons;
+
+    for(i=0;i<6;i++){
+        for(y=0;y<nbVars[i];y++){
+            int lineTarget = getLineOfVar(structVars[i][y]);
+            tabOfLines[lineTarget]++;
+        }
+    }
+
+    for(i=0;i<nbSons;i++){
+        tabOfLines = structNbVarsOnLines(currStruct.sonStructs[i], tabOfLines);
+    }
+
+    return tabOfLines;
+}
+
+int* getMultiDeclarOnLine(char* fileContent, lineLevels* primaryStructs, int nbPrimaryLevels, int nbLines){
+    int* tabOfLines = malloc(sizeof(int)*nbLines);
+    int i;
+
+    for(i=0;i<nbLines;i++){
+        tabOfLines[i] = 0;
+    }
+
+    for(i=0;i<nbPrimaryLevels;i++){
+        tabOfLines = structNbVarsOnLines(primaryStructs[i], tabOfLines);
+    }
+
+    return tabOfLines;
+}
 
 int main(int argc, char **argv)
 {
@@ -314,6 +368,7 @@ int main(int argc, char **argv)
             case 2:
                 system("cls");
                 dispDirContent(".", recursiveState, nbFileExcluded, excludedFiles, 0, rulesValues);
+                system("pause");
                 break;
 
             case 3:
@@ -400,6 +455,8 @@ void verifSourceCode(char* path, int* rulesValues){
         }
     }
 
+    int* multiDeclarLines = getMultiDeclarOnLine(fileContent, primaryStructs, nbPrimaryLevels, nbLines);
+
     // Regle n°6 de nombre de ligne maximum pour un fichier
     if(rulesValues[6] > 0){
         if(nbLines > rulesValues[6]){
@@ -446,13 +503,16 @@ void verifSourceCode(char* path, int* rulesValues){
 
         // Regle n°8 de non declaration multiple de variable sur une ligne
         if(rulesValues[8] > 0){
-            onlyOneDeclar(line);
+            if(multiDeclarLines[i] > 1 && i < nbLines){
+                printf("!! Warning Rule 8 : Multi Declaration spotted (%d declaration)\n\n",multiDeclarLines[i]);
+            }
         }
     }
 
 
     printf("\n\n\n");
     freeAllStructs(primaryStructs, nbPrimaryLevels);
+    free(multiDeclarLines);
     free(fileContent);
 
     system("pause");
@@ -467,13 +527,14 @@ int countVarsOnLine(char* fileContent, int startInd){
     int doubleQuoteOpened = 0;
 
     while(fileContent[i] != ';'){
-        if(fileContent[i] == 34){
+
+        if(fileContent[i] == 39){
             if(simpleQuoteOpened == 0){
                 simpleQuoteOpened = 1;
             }else{
                 simpleQuoteOpened = 0;
             }
-        }else if(fileContent[i] == 44){
+        }else if(fileContent[i] == 34){
             if(doubleQuoteOpened == 0){
                 doubleQuoteOpened = 1;
             }else{
@@ -485,7 +546,7 @@ int countVarsOnLine(char* fileContent, int startInd){
         }else if(fileContent[i] == ')' || fileContent[i] == '}' || fileContent[i] == ']'){
             isNotVar--;
         }
-        if((isText(fileContent[i]) || fileContent[i] == '*') && (fileContent[i-1] == ' ' || fileContent[i-1] == ',') && isNotVar == 0 && varStarted == 0 && simpleQuoteOpened == 0 && doubleQuoteOpened == 0){
+        if((isText(fileContent[i]) || fileContent[i] == '*') && (fileContent[i-1] == ' ' || fileContent[i-1] == ',' || fileContent[i-1] == '*' || fileContent[i-1] == '\t') && isNotVar == 0 && varStarted == 0 && simpleQuoteOpened == 0 && doubleQuoteOpened == 0){
             varStarted = 1;
             nbVars++;
         }
@@ -515,13 +576,13 @@ char** extractVarsOfLine(char* fileContent, int startInd, int nbVarsOnLine, int 
 
     i = startInd;
     while(fileContent[i] != ';'){
-        if(fileContent[i] == 34){
+        if(fileContent[i] == 39){
             if(simpleQuoteOpened == 0){
                 simpleQuoteOpened = 1;
             }else{
                 simpleQuoteOpened = 0;
             }
-        }else if(fileContent[i] == 44){
+        }else if(fileContent[i] == 34){
             if(doubleQuoteOpened == 0){
                 doubleQuoteOpened = 1;
             }else{
@@ -1454,7 +1515,6 @@ void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excl
     {
         struct dirent * ent;
 
-        printf("\n------------\n");
         while ((ent = readdir(rep)) != NULL)
         {
             if(strcmp(ent->d_name,".") != 0 && strcmp(ent->d_name,"..") != 0){
@@ -1491,11 +1551,19 @@ void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excl
                     if(isCFile > 0){
                         if(isExcluded > 0){
                             if(typeExec == 0){
-                                printf("File Excluded From %s : %s\n", tellFolder, ent->d_name);
+                                if(strcmp(tellFolder,"Src") != 0){
+                                    printf("%s/%s - EXCLUDED\n", tellFolder, ent->d_name);
+                                }else{
+                                    printf("%s - EXCLUDED\n", ent->d_name);
+                                }
                             }
                         }else{
                             if(typeExec == 0){
-                                printf("File NOTExcluded From %s : %s\n", tellFolder, ent->d_name);
+                                if(strcmp(tellFolder,"Src") != 0){
+                                    printf("%s/%s - NOT EXCLUDED\n", tellFolder, ent->d_name);
+                                }else{
+                                    printf("%s - NOT EXCLUDED\n", ent->d_name);
+                                }
                             }else{
                                 char tmpFilePath[150] = "";
                                 if(strcmp(tellFolder,"Src") != 0){
@@ -1536,66 +1604,6 @@ int isText(char c){
         return 1;
     }else{
         return 0;
-    }
-}
-
-void onlyOneDeclar(char* line){
-    char types[6][10] = {"int","float","double","char","long","struct"};
-    char tmp[20];
-    int varTyped = 0;
-    int varFinded = 0;
-    int i;
-    int warned = 0;
-
-    int lengthLine = strlen(line);
-
-    int isNotFunc = 1;
-    int isNotTab = 1;
-    for(i=0;i<lengthLine;i++){
-        if(line[i] == '(' || line[i] == ')'){
-            isNotFunc = 0;
-        }
-        if(line[i] == '[' || line[i] == ']'){
-            isNotTab = 0;
-        }
-    }
-
-    // On ignore l'indentation
-    i = 0;
-    while(line[i] == ' '){
-        i++;
-    }
-
-    // On autorise pour le moment seulement des declaration de type en minuscule (int, char, double, ...)
-    int x = 0;
-    while(isText(line[i])){
-        tmp[x] = line[i];
-        x++;
-        i++;
-    }
-    tmp[x] = '\0';
-
-    for(i=0;i<6;i++){
-        if(strcmp(tmp, types[i]) == 0){
-            varTyped = 1;
-        }
-    }
-
-    if(varTyped && isNotFunc && isNotTab){
-        while(i < lengthLine && isText(line[i])){
-            varFinded = 1;
-            i++;
-        }
-        if(varFinded){
-            for(x=i-1;x<lengthLine;x++){
-                if(line[x] == ','){
-                    if(warned == 0){
-                        printf("!! Warning Rule 8 : Multi Declaration spotted\n\n");
-                        warned++;
-                    }
-                }
-            }
-        }
     }
 }
 
