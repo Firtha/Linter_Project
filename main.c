@@ -14,6 +14,9 @@ struct lineLevels{
     int* nbVars;
     lineLevels* sonStructs;
     int nbSons;
+
+    char*** globalVars;
+    int* nbGlobal;
 };
 
 int testDisplay = 0;
@@ -56,6 +59,8 @@ int countVarsOnLine(char* fileContent, int startInd);
 
 char*** levelVarStorage(char* fileContent, lineLevels currStruct);
 char** extractVarsOfLine(char* fileContent, int startInd, int nbVarsOnLine, int lineNumber);
+
+void assignGlobalTabsInSons(lineLevels currStruct, char*** globalVars, int* nbGlobal);
 
 void freeAllStructs(lineLevels* primaryStructs, int nbStructs);
 
@@ -160,6 +165,196 @@ PARTIE III :
 - function-parameters-type = off
 
 */
+
+int* getNbGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrimaries){
+    char types[6][15] = {"int","float","char","double","long","struct"};
+    int* nbVars = malloc(sizeof(int)*6);
+    int i;
+    int x;
+    int typeFinded;
+    int typeIndex;
+    int nbLines = 0;
+    int isNotFunc;
+    int equalFinded;
+    int isNotProto;
+
+    for(i=0;i<6;i++){
+        nbVars[i] = 0;
+    }
+
+    // RECUPERATION DES VARIABLES HORS DES STRUCTURES
+    int length = strlen(fileContent);
+
+    int nbSon = 0;
+    for(i=0;i<length;i++){
+        isNotFunc = 0;
+        isNotProto = 0;
+        equalFinded = 0;
+        if(fileContent[i] == '\n'){
+            nbLines++;
+        }
+        int tmpSave = i;
+
+        while(fileContent[i] != '\n'){
+            if(fileContent[i] == ';'){
+                isNotFunc = 1;
+            }
+            if(fileContent[i] == '('){
+                if(equalFinded){
+                    isNotProto = 0;
+                }else{
+                    isNotProto = 1;
+                }
+            }
+            if(fileContent[i] == '='){
+                equalFinded = 1;
+            }
+            i++;
+        }
+
+        i = tmpSave;
+
+        typeFinded = 0;
+        if(i >= primaryStructs[nbSon].startLevel){
+            i = primaryStructs[nbSon].endLevel;
+            nbLines = primaryStructs[nbSon].endingLine;
+            printf("GetNbGlobalVars : LINE %d TO %d : JUMP FROM %d TO %d\n", primaryStructs[nbSon].startingLine+1, nbLines+1, primaryStructs[nbSon].startLevel, primaryStructs[nbSon].endLevel);
+            nbSon++;
+        }
+
+        //! REPERAGE DU TYPE + DECOMPTAGE
+        for(x=0;x<6;x++){
+            int y = 0;
+            if(types[x][y] == fileContent[i] && (fileContent[i-1] == '\n' || fileContent[i-1] == '\t' || fileContent[i-1] == ' ' || fileContent[i-1] == '*') && isNotFunc == 1 && isNotProto == 0){
+                int lengthType = strlen(types[x]);
+                char tmpType[25];
+                while(y < lengthType){
+                    tmpType[y] = fileContent[i+y];
+                    y++;
+                }
+                tmpType[y] = '\0';
+                if(strcmp(tmpType,types[x]) == 0 && fileContent[i+y] == ' '){
+                    typeFinded = 1;
+                    typeIndex = x;
+                    x = 6;
+                    i = i + y - 1;
+                }
+            }
+        }
+        if(typeFinded == 1){
+            nbVars[typeIndex] += countVarsOnLine(fileContent, i);
+        }
+    }
+
+    printf("Global Vars : \n");
+    for(i=0;i<6;i++){
+        printf("%s -> %d vars spotted\n",types[i],nbVars[i]);
+    }
+
+    return nbVars;
+}
+
+char*** getGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrimaries, int* nbVars){
+    char types[6][15] = {"int","float","char","double","long","struct"};
+    int tabIndex[6] = {0};
+
+    int i;
+    int x;
+    int y;
+    int typeFinded;
+    int typeIndex;
+    int nbLines = 0;
+    int isNotFunc;
+    int equalFinded;
+    int isNotProto;
+
+    char*** globalVars = malloc(sizeof(char**) * 6);
+    for(i=0;i<6;i++){
+        globalVars[i] = malloc(sizeof(char*) * nbVars[i]);
+        for(y=0;y<nbVars[i];y++){
+            globalVars[i][y] = malloc(sizeof(char) * 50);
+        }
+    }
+
+    // RECUPERATION DES VARIABLES HORS DES STRUCTURES
+    int length = strlen(fileContent);
+
+    int nbSon = 0;
+    for(i=0;i<length;i++){
+        isNotFunc = 0;
+        isNotProto = 0;
+        equalFinded = 0;
+        if(fileContent[i] == '\n'){
+            nbLines++;
+        }
+        int tmpSave = i;
+
+        while(fileContent[i] != '\n'){
+            if(fileContent[i] == ';'){
+                isNotFunc = 1;
+            }
+            if(fileContent[i] == '('){
+                if(equalFinded){
+                    isNotProto = 0;
+                }else{
+                    isNotProto = 1;
+                }
+            }
+            if(fileContent[i] == '='){
+                equalFinded = 1;
+            }
+            i++;
+        }
+
+        i = tmpSave;
+
+        typeFinded = 0;
+        if(i >= primaryStructs[nbSon].startLevel){
+            i = primaryStructs[nbSon].endLevel;
+            nbLines = primaryStructs[nbSon].endingLine;
+            printf("GetGlobalVars : LINE %d TO %d : JUMP FROM %d TO %d\n", primaryStructs[nbSon].startingLine+1, nbLines+1, primaryStructs[nbSon].startLevel, primaryStructs[nbSon].endLevel);
+            nbSon++;
+        }
+
+        //! REPERAGE DU TYPE + DECOMPTAGE
+        for(x=0;x<6;x++){
+            int y = 0;
+            if(types[x][y] == fileContent[i] && (fileContent[i-1] == '\n' || fileContent[i-1] == '\t' || fileContent[i-1] == ' ' || fileContent[i-1] == '*') && isNotFunc == 1 && isNotProto == 0){
+                int lengthType = strlen(types[x]);
+                char tmpType[25];
+                while(y < lengthType){
+                    tmpType[y] = fileContent[i+y];
+                    y++;
+                }
+                tmpType[y] = '\0';
+                if(strcmp(tmpType,types[x]) == 0 && fileContent[i+y] == ' '){
+                    typeFinded = 1;
+                    typeIndex = x;
+                    x = 6;
+                    i = i + y - 1;
+                }
+            }
+        }
+        if(typeFinded == 1){
+            int nbVarOnLine = countVarsOnLine(fileContent, i);
+            char** extractedVarOfLine = extractVarsOfLine(fileContent, i, nbVarOnLine, nbLines);
+            int z;
+            for(z=0;z<nbVarOnLine;z++){
+                strcpy(globalVars[typeIndex][tabIndex[typeIndex]], extractedVarOfLine[z]);
+                tabIndex[typeIndex]++;
+            }
+        }
+    }
+
+    printf("Liste des vars globales extraites :\n");
+    for(i=0;i<6;i++){
+        for(y=0;y<nbVars[i];y++){
+            printf("%s - %s\n",types[i], globalVars[i][y]);
+        }
+    }
+
+    return globalVars;
+}
 
 int getLineOfVar(char* varName){
     int i = 0;
@@ -429,6 +624,19 @@ void freeAllStructs(lineLevels* primaryStructs, int nbStructs){
     free(primaryStructs);
 }
 
+void assignGlobalTabsInSons(lineLevels currStruct, char*** globalVars, int* nbGlobal){
+    int i;
+
+    currStruct.globalVars = globalVars;
+    currStruct.nbGlobal = nbGlobal;
+
+    if(currStruct.nbSons > 0){
+        for(i=0;i<currStruct.nbSons;i++){
+            assignGlobalTabsInSons(currStruct.sonStructs[i], globalVars, nbGlobal);
+        }
+    }
+}
+
 //! LA FONCTION DEVRA RECEVOIR TOUTES LES INFOS DE CONFIG EN PARAMETRE AFIN D'EFFECTUER TOUTES LES VERIFS ELLE MEME
 void verifSourceCode(char* path, int* rulesValues){
     char* fileContent;
@@ -446,6 +654,13 @@ void verifSourceCode(char* path, int* rulesValues){
 
     int nbPrimaryLevels = getNbPrimaryLevels(fileContent);
     lineLevels* primaryStructs = getAllLevels(fileContent, nbPrimaryLevels);
+
+    int* nbGlobalVars = getNbGlobalVars(fileContent, primaryStructs, nbPrimaryLevels);
+    char*** globalVars = getGlobalVars(fileContent, primaryStructs, nbPrimaryLevels, nbGlobalVars);
+
+    for(i=0;i<nbPrimaryLevels;i++){
+        assignGlobalTabsInSons(primaryStructs[i], globalVars, nbGlobalVars);
+    }
 
     printf("\nLEVELS COUNTED : %d\n\n",nbPrimaryLevels);
 

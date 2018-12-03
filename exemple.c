@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+int globalVar;
+double globalNumber;
+int stateVar;
+
 int returnVar();
 
 int main(int argc, char** argv){
@@ -26,6 +30,8 @@ int main(int argc, char** argv){
     
     return 0;
 }
+
+char testingGlobal;
 
 int returnVar(){
     int returnedVal = 1;
