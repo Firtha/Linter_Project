@@ -81,7 +81,6 @@ int dispErrMessg(char* fileName, int typeOf, int dispChx);
 void verifSourceCode(char* path, int* rulesValues);
 int lookForType(char* fileContent, int startInd);
 
-
 int varAlreadyDeclaredInScope(lineLevels* primaryStructs, int nbPrimaries, char* nameVar);
 
 //! Parsing
@@ -174,6 +173,22 @@ PARTIE III :
 
 */
 
+//! Verif si existe
+int checkIfExistInStruct(lineLevels currStruct, int typeIndex, int varIndex){
+    int* nbVars = currStruct.nbVars;
+    char*** declaredVars = currStruct.declaredVars;
+
+    char* currVar = declaredVars[typeIndex][varIndex];
+    char* nameOfVar = extractNameFromNameVar(currVar);
+    int lineOfVar = getLineOfVar(currVar);
+
+    //! VERIFIE SUR LA VARIABLE COURRANTE (currVar) a déja été déclarée précedemment
+    //!  - Fonctionnement similaire aux globales simples
+    //!  - Réfléchir a un moyen d'aller au parent d'une structure simplement (adresse du parent en var de structure ?)
+
+    return 0;
+}
+
 //! Compare la variable avec toutes les autres globales (sauf elle meme)
 int checkIfGlobalExistInGlobal(char*** globalVars, int* nbGlobal, int typeIndex, int varIndex){
     char* currVar = globalVars[typeIndex][varIndex];
@@ -243,7 +258,11 @@ int* getLinesOfAlreadyDeclaredVars(char* fileContent, int nbLines, lineLevels* p
 
     //! Parcourir les variables des niveaux primaires ET leurs fils
     //!  - Repérer dans quelle structure fille la plus basse nous sommes (ou primaire le cas échéant)
-    //!  - Comparer avec toutes les variables déclarées a portée similaire (structure courante, puis parente, etc...)
+    //!  - Comparer avec toutes les variables déclarées a portée similaire (structure courante, puis parente, etc jusqu'aux globales)
+
+    for(i=0;i<nbPrimaries;i++){
+
+    }
 
     return tabOfLines;
 }
