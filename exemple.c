@@ -7,6 +7,8 @@ int stateVar;
 
 int returnVar();
 
+int globalVar;
+
 int main(int argc, char** argv){
     char tab[6][15] = {"Hello","World","I","feel","really","great"}, tabBis[6] = "Hello";
     
@@ -32,11 +34,14 @@ int main(int argc, char** argv){
 }
 
 char testingGlobal;
+char* testingGlobal;
 
 int returnVar(){
     int returnedVal = 1;
     return returnedVal;
 }
+
+double globalNumber;
 
 char* noPrototype(){
     char* myTab = malloc(sizeof(char)*25);

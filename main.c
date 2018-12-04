@@ -66,7 +66,7 @@ char*** getGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrima
 char*** levelVarStorage(char* fileContent, lineLevels currStruct);
 char** extractVarsOfLine(char* fileContent, int startInd, int nbVarsOnLine, int lineNumber);
 
-void assignGlobalTabsInSons(lineLevels currStruct, char*** globalVars, int* nbGlobal);
+lineLevels assignGlobalTabsInSons(lineLevels currStruct, char*** globalVars, int* nbGlobal);
 
 void freeAllStructs(lineLevels* primaryStructs, int nbStructs);
 
@@ -81,6 +81,8 @@ int dispErrMessg(char* fileName, int typeOf, int dispChx);
 void verifSourceCode(char* path, int* rulesValues);
 int lookForType(char* fileContent, int startInd);
 
+
+int varAlreadyDeclaredInScope(lineLevels* primaryStructs, int nbPrimaries, char* nameVar);
 
 //! Parsing
 //! Mettre en place des structures :
@@ -172,36 +174,28 @@ PARTIE III :
 
 */
 
-int checkIfVarDeclaredInSons(lineLevels currStruct, char* nameVar){
+//! Compare la variable avec toutes les autres globales (sauf elle meme)
+int checkIfGlobalExistInGlobal(char*** globalVars, int* nbGlobal, int typeIndex, int varIndex){
+    char* currVar = globalVars[typeIndex][varIndex];
+    char* nameOfVar = extractNameFromNameVar(currVar);
+    int lineOfVar = getLineOfVar(currVar);
+
+    //! TODO
+    //!  - Comparer a toutes les autres variables globales
+    //!  - Passe a 1 si une variable du même nom a été déclaré avant celle qu'on étudie
+    //!  - Si verif not OK, simple renvoi de valeur initiale (0)
+
     int i;
     int y;
-    int nbSon = currStruct.nbSons;
-
-    int varLine = getLineOfVar(nameVar);
-    char* nameOfVar = extractNameFromNameVar(nameVar);
-
-    // On vérifie si la ligne cible une structure fille, si non alors on continue et on traite la structure actuelle
-    for(i=0;i<nbSon;i++){
-        if(varLine >= currStruct.sonStructs[i].startingLine && varLine <= currStruct.sonStructs[i].endingLine){
-            int stateFct = checkIfVarDeclaredInSons(currStruct.sonStructs[i], nameVar);
-            if(stateFct){
-                return 1;
-            }
-        }
-    }
-
-    // Si la ligne cible cette structure et pas une autre
-    int* nbVars = currStruct.nbVars;
-    char*** structVars = currStruct.declaredVars;
     for(i=0;i<6;i++){
-        for(y=0;y<nbVars[i];y++){
-            // On recupere la ligne de la variable a comparer (si celle ci est présente après, aucun traitement)
-            int lineTargetVar = getLineOfVar(structVars[i][y]);
-            if(lineTargetVar <= varLine){
-                char* nameTargetVar = extractNameFromNameVar(structVars[i][y]);
-                // Si la déclaration précède la variable a vérifier, on compare et on retourne 1 si déja déclarée
-                if(strcmp(nameOfVar, nameTargetVar) == 0){
-                    return 1;
+        for(y=0;y<nbGlobal[i];y++){
+            if(i != typeIndex || y != varIndex){
+                int lineOfTarget = getLineOfVar(globalVars[i][y]);
+                if(lineOfTarget <= lineOfVar){
+                    char* nameOfTarget = extractNameFromNameVar(globalVars[i][y]);
+                    if(strcmp(nameOfVar, nameOfTarget) == 0){
+                        return 1;
+                    }
                 }
             }
         }
@@ -210,41 +204,48 @@ int checkIfVarDeclaredInSons(lineLevels currStruct, char* nameVar){
     return 0;
 }
 
-int varAlreadyDeclaredInScope(lineLevels* primaryStructs, int nbPrimaries, char* nameVar){
-    int i;
-    int y;
-    char* nameOfVar = extractNameFromNameVar(nameVar);
-    int varLine = getLineOfVar(nameVar);
+//! Parcours chaque variable
+//!  - Pour chaque var, comparer a toutes les autres (lignes + nom) dans une portée accessible
+//!     o Si la même var est déclarée deux fois, relever la ligne de nouvelle déclaration dans le tableau
+//!  - Traitement réalisé par les deux fonctions existantes + une nouvelle
+//! Le tableau permettra, dans verifSourceCode, de repérer les lignes problèmatiques
+int* getLinesOfAlreadyDeclaredVars(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries){
+    char types[6][15] = {"int","float","char","double","long","struct"};
+    int* tabOfLines = malloc(sizeof(int)*nbLines);
 
     int* nbGlobal = primaryStructs[0].nbGlobal;
-    char*** globalVars = primaryStructs[0].declaredVars;
-    // Verification par rapport aux variables globales
+    char*** globalVars = primaryStructs[0].globalVars;
+
+    int i;
+    int y;
+
+    printf("GetLinesOfAlreadyDeclaredVars LAUNCHED\n");
+    for(i=0;i<nbLines;i++){
+        tabOfLines[i] = 0;
+    }
+
+    printf("Variables globales :\n");
+    for(i=0;i<6;i++){
+        printf("Var of type %s - %d vars\n",types[i],nbGlobal[i]);
+    }
+
+    //! Comparaison des variables globales avec les variables globales (seule portée contradictoire avec source global)
     for(i=0;i<6;i++){
         for(y=0;y<nbGlobal[i];y++){
-            // On recupere la ligne de la variable a comparer (si celle ci est présente après, aucun traitement)
-            int lineTargetVar = getLineOfVar(globalVars[i][y]);
-            if(lineTargetVar <= varLine){
-                char* nameTargetVar = extractNameFromNameVar(globalVars[i][y]);
-                // Si la déclaration précède la variable a vérifier, on compare et on retourne 1 si déja déclarée
-                if(strcmp(nameOfVar, nameTargetVar) == 0){
-                    return 1;
-                }
+            int stateVar = checkIfGlobalExistInGlobal(globalVars, nbGlobal, i, y);
+            if(stateVar){
+                printf("RE-DECLARE FINDED FOR %s\n",globalVars[i][y]);
+                int varLine = getLineOfVar(globalVars[i][y]);
+                tabOfLines[varLine]++;
             }
         }
     }
 
-    // Reperage de la structure primaire dans laquelle on se trouve
-    for(i=0;i<nbPrimaries;i++){
-        if(varLine >= primaryStructs[i].startingLine && varLine <= primaryStructs[i].endingLine){
-            int stateFct = checkIfVarDeclaredInSons(primaryStructs[i], nameVar);
-            if(stateFct){
-                return 1;
-            }
-        }
-    }
+    //! Parcourir les variables des niveaux primaires ET leurs fils
+    //!  - Repérer dans quelle structure fille la plus basse nous sommes (ou primaire le cas échéant)
+    //!  - Comparer avec toutes les variables déclarées a portée similaire (structure courante, puis parente, etc...)
 
-    // Si aucune comparaison n'a été fructueuse (et donc variable non déclarée), on retourne 0 pour indiquer que la déclaration est OK
-    return 0;
+    return tabOfLines;
 }
 
 int* structNbVarsOnLines(lineLevels currStruct, int* tabOfLines){
@@ -511,6 +512,7 @@ char* extractNameFromNameVar(char* varName){
 
     while(varName[i] != '-'){
         nameOfVar[i] = varName[i];
+        i++;
     }
     nameOfVar[i] = '\0';
 
@@ -527,7 +529,7 @@ void freeAllStructs(lineLevels* primaryStructs, int nbStructs){
     free(primaryStructs);
 }
 
-void assignGlobalTabsInSons(lineLevels currStruct, char*** globalVars, int* nbGlobal){
+lineLevels assignGlobalTabsInSons(lineLevels currStruct, char*** globalVars, int* nbGlobal){
     int i;
 
     currStruct.globalVars = globalVars;
@@ -535,9 +537,11 @@ void assignGlobalTabsInSons(lineLevels currStruct, char*** globalVars, int* nbGl
 
     if(currStruct.nbSons > 0){
         for(i=0;i<currStruct.nbSons;i++){
-            assignGlobalTabsInSons(currStruct.sonStructs[i], globalVars, nbGlobal);
+            currStruct.sonStructs[i] = assignGlobalTabsInSons(currStruct.sonStructs[i], globalVars, nbGlobal);
         }
     }
+
+    return currStruct;
 }
 
 //! LA FONCTION DEVRA RECEVOIR TOUTES LES INFOS DE CONFIG EN PARAMETRE AFIN D'EFFECTUER TOUTES LES VERIFS ELLE MEME
@@ -562,7 +566,7 @@ void verifSourceCode(char* path, int* rulesValues){
     char*** globalVars = getGlobalVars(fileContent, primaryStructs, nbPrimaryLevels, nbGlobalVars);
 
     for(i=0;i<nbPrimaryLevels;i++){
-        assignGlobalTabsInSons(primaryStructs[i], globalVars, nbGlobalVars);
+        primaryStructs[i] = assignGlobalTabsInSons(primaryStructs[i], globalVars, nbGlobalVars);
     }
 
     printf("\nLEVELS COUNTED : %d\n\n",nbPrimaryLevels);
@@ -572,6 +576,9 @@ void verifSourceCode(char* path, int* rulesValues){
             nbLines++;
         }
     }
+
+    //! Ne correspond a aucune règle actuellement, a mettre en BONUS car très important
+    int* tabOfLinesForDoubleDeclar = getLinesOfAlreadyDeclaredVars(fileContent, nbLines, primaryStructs, nbPrimaryLevels);
 
     int* multiDeclarLines = getMultiDeclarOnLine(fileContent, primaryStructs, nbPrimaryLevels, nbLines);
 
@@ -623,6 +630,13 @@ void verifSourceCode(char* path, int* rulesValues){
         if(rulesValues[8] > 0){
             if(multiDeclarLines[i] > 1 && i < nbLines){
                 printf("!! Warning Rule 8 : Multi Declaration spotted (%d declaration)\n\n",multiDeclarLines[i]);
+            }
+        }
+
+        // Regle a définir
+        if(1 == 1){
+            if(tabOfLinesForDoubleDeclar[i] > 0 && i < nbLines){
+                printf("!! FATAL ERROR : Var already declared\n");
             }
         }
     }
@@ -703,7 +717,7 @@ int* getNbGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrimar
                     y++;
                 }
                 tmpType[y] = '\0';
-                if(strcmp(tmpType,types[x]) == 0 && fileContent[i+y] == ' '){
+                if(strcmp(tmpType,types[x]) == 0 && (fileContent[i+y] == ' ' || fileContent[i+y] == '*')){
                     typeFinded = 1;
                     typeIndex = x;
                     x = 6;
@@ -797,7 +811,7 @@ char*** getGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrima
                     y++;
                 }
                 tmpType[y] = '\0';
-                if(strcmp(tmpType,types[x]) == 0 && fileContent[i+y] == ' '){
+                if(strcmp(tmpType,types[x]) == 0 && (fileContent[i+y] == ' ' || fileContent[i+y] == '*')){
                     typeFinded = 1;
                     typeIndex = x;
                     x = 6;
@@ -810,13 +824,6 @@ char*** getGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrima
             char** extractedVarOfLine = extractVarsOfLine(fileContent, i, nbVarOnLine, nbLines);
             int z;
             for(z=0;z<nbVarOnLine;z++){
-                //int stateVar = varAlreadyDeclaredInScope(primaryStructs, nbPrimaries, extractedVarOfLine[z]);
-
-                //! TODO
-                //!  - VERIFICATION D'EXISTENCE
-                //!  - MODIFICATION NBVARS DANS LE CAS OU NON STOCKEE
-                //!  - A REFLECHIR POUR STOCKAGE DES LIGNES DE DECLARATION IMPOSSIBLE (REGLE)
-
                 strcpy(globalVars[typeIndex][tabIndex[typeIndex]], extractedVarOfLine[z]);
                 tabIndex[typeIndex]++;
             }
