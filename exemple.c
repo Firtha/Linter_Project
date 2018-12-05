@@ -14,6 +14,9 @@ int main(int argc, char** argv){
     
     printf("Hello World !");
     
+    char* oneWord;
+    int globalVar;
+    char testingGlobal;
     nbChar = 0;
     
     int i;
@@ -26,6 +29,8 @@ int main(int argc, char** argv){
             printf("Alriiight...");
             int testingDeclar;
             int moreTesting;
+            char moreWord;
+            char moreWord;
         }
         printf("Spacing test"); 
     }
@@ -38,6 +43,7 @@ char* testingGlobal;
 
 int returnVar(){
     int returnedVal = 1;
+    char testingGlobal;
     return returnedVal;
 }
 
@@ -54,6 +60,7 @@ char* noPrototype(){
         myTab[i] = tab[i];
         if(cptTest){
             int anotherTry;
+            double globalNumber;
         }
     }
     myTab[max] = '\0';

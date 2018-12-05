@@ -6,6 +6,8 @@
 typedef struct lineLevels lineLevels;
 struct lineLevels{
     int identifier;
+    int levelNumber;
+
     int startLevel;
     int startingLine;
     int endLevel;
@@ -17,6 +19,8 @@ struct lineLevels{
 
     char*** globalVars;
     int* nbGlobal;
+
+    int dadAddr;
 };
 
 int testDisplay = 0;
@@ -173,8 +177,60 @@ PARTIE III :
 
 */
 
+//! Variable checkPointer est modifié dans la fonction sans avoir besoin d'être retourné
+//!  Elle permet de différencier des retours positifs des retours négatifs
+lineLevels getSonStructWithLevelAndIdentifier(int targetLevel, int targetIdentifier, lineLevels currStruct, int* checkPointer){
+    int i;
+    int finded = 0;
+
+    if(currStruct.levelNumber == targetLevel && currStruct.identifier == targetIdentifier){
+        *checkPointer = 1;
+        return currStruct;
+    }
+
+    int nbSons = currStruct.nbSons;
+    for(i=0;i<nbSons;i++){
+        finded = 0;
+        lineLevels returnedStruct = getSonStructWithLevelAndIdentifier(targetLevel, targetIdentifier, currStruct.sonStructs[i], &finded);
+        if(finded == 1){
+            return returnedStruct;
+        }
+    }
+
+    //! Ne doit jamais arriver, évite le warning
+    return currStruct;
+}
+
+lineLevels getStructWithLevelAndIdentifier(int targetLevel, int targetIdentifier, lineLevels* primaryStructs, int nbPrimaries){
+    int i;
+    int y;
+    int finded = 0;
+
+    for(i=0;i<nbPrimaries;i++){
+        lineLevels currStruct = primaryStructs[i];
+        if(currStruct.levelNumber == targetLevel && currStruct.identifier == targetIdentifier){
+            return currStruct;
+        }
+
+        int nbSons = currStruct.nbSons;
+        for(y=0;y<nbSons;y++){
+            finded = 0;
+            lineLevels returnedStruct = getSonStructWithLevelAndIdentifier(targetLevel, targetIdentifier, currStruct.sonStructs[y], &finded);
+            if(finded == 1){
+                return returnedStruct;
+            }
+        }
+    }
+
+    //! Ne doit jamais arriver, évite le warning
+    return primaryStructs[0];
+}
+
 //! Verif si existe
-int checkIfExistInStruct(lineLevels currStruct, int typeIndex, int varIndex){
+int checkIfExistInStruct(lineLevels* primaryStructs, int nbPrimaries, lineLevels currStruct, int typeIndex, int varIndex){
+    int* nbGlobal = currStruct.nbGlobal;
+    char*** globalVars = currStruct.globalVars;
+
     int* nbVars = currStruct.nbVars;
     char*** declaredVars = currStruct.declaredVars;
 
@@ -182,11 +238,95 @@ int checkIfExistInStruct(lineLevels currStruct, int typeIndex, int varIndex){
     char* nameOfVar = extractNameFromNameVar(currVar);
     int lineOfVar = getLineOfVar(currVar);
 
-    //! VERIFIE SUR LA VARIABLE COURRANTE (currVar) a déja été déclarée précedemment
-    //!  - Fonctionnement similaire aux globales simples
-    //!  - Réfléchir a un moyen d'aller au parent d'une structure simplement (adresse du parent en var de structure ?)
+    int i;
+    int y;
+
+    //! Verification de déclaration dans les variables de la structure courante
+    for(i=0;i<6;i++){
+        for(y=0;y<nbVars[i];y++){
+            if(i != typeIndex || y != varIndex){
+                int lineOfTarget = getLineOfVar(declaredVars[i][y]);
+                if(lineOfTarget <= lineOfVar){
+                    char* nameOfTarget = extractNameFromNameVar(declaredVars[i][y]);
+                    if(strcmp(nameOfVar, nameOfTarget) == 0){
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
+
+    //! Verification de déclaration dans les variables des structures parentes (s'il y en a)
+    //!  - Appel d'une fonction parcourant les structures jusqu'a retrouver le couple levelNumber (dadLevel) + identifier (dadIdentifier)
+    while(currStruct.levelNumber > 1){
+        int dadLevel = currStruct.levelNumber - 1;
+        int dadIdentifier = currStruct.dadAddr;
+        currStruct = getStructWithLevelAndIdentifier(dadLevel, dadIdentifier, primaryStructs, nbPrimaries);
+
+        nbVars = currStruct.nbVars;
+        declaredVars = currStruct.declaredVars;
+
+        for(i=0;i<6;i++){
+            for(y=0;y<nbVars[i];y++){
+                if(i != typeIndex || y != varIndex){
+                    int lineOfTarget = getLineOfVar(declaredVars[i][y]);
+                    if(lineOfTarget <= lineOfVar){
+                        char* nameOfTarget = extractNameFromNameVar(declaredVars[i][y]);
+                        if(strcmp(nameOfVar, nameOfTarget) == 0){
+                            return 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    //! Verification de déclaration dans les variables globales
+    for(i=0;i<6;i++){
+        for(y=0;y<nbGlobal[i];y++){
+            if(i != typeIndex || y != varIndex){
+                int lineOfTarget = getLineOfVar(globalVars[i][y]);
+                if(lineOfTarget <= lineOfVar){
+                    char* nameOfTarget = extractNameFromNameVar(globalVars[i][y]);
+                    if(strcmp(nameOfVar, nameOfTarget) == 0){
+                        return 1;
+                    }
+                }
+            }
+        }
+    }
 
     return 0;
+}
+
+//! Appel checkIfExistInStruct pour chaque var de la structure courrante
+//!  - Appel ses filles pour traitement identique si celles ci existent
+int* goToStructSonsForCheck(lineLevels* primaryStructs, int nbPrimaries, lineLevels currStruct, int* tabOfLines){
+    int* nbVars = currStruct.nbVars;
+    char*** declaredVars = currStruct.declaredVars;
+
+    int i;
+    int y;
+
+    for(i=0;i<6;i++){
+        for(y=0;y<nbVars[i];y++){
+            int stateVar = checkIfExistInStruct(primaryStructs, nbPrimaries, currStruct, i, y);
+            if(stateVar){
+                int varLine = getLineOfVar(declaredVars[i][y]);
+                tabOfLines[varLine]++;
+            }
+        }
+    }
+
+    int nbSons = currStruct.nbSons;
+    if(nbSons > 0){
+        lineLevels* sonStructs = currStruct.sonStructs;
+        for(i=0;i<nbSons;i++){
+            tabOfLines = goToStructSonsForCheck(primaryStructs, nbPrimaries, sonStructs[i], tabOfLines);
+        }
+    }
+
+    return tabOfLines;
 }
 
 //! Compare la variable avec toutes les autres globales (sauf elle meme)
@@ -194,11 +334,6 @@ int checkIfGlobalExistInGlobal(char*** globalVars, int* nbGlobal, int typeIndex,
     char* currVar = globalVars[typeIndex][varIndex];
     char* nameOfVar = extractNameFromNameVar(currVar);
     int lineOfVar = getLineOfVar(currVar);
-
-    //! TODO
-    //!  - Comparer a toutes les autres variables globales
-    //!  - Passe a 1 si une variable du même nom a été déclaré avant celle qu'on étudie
-    //!  - Si verif not OK, simple renvoi de valeur initiale (0)
 
     int i;
     int y;
@@ -234,7 +369,6 @@ int* getLinesOfAlreadyDeclaredVars(char* fileContent, int nbLines, lineLevels* p
     int i;
     int y;
 
-    printf("GetLinesOfAlreadyDeclaredVars LAUNCHED\n");
     for(i=0;i<nbLines;i++){
         tabOfLines[i] = 0;
     }
@@ -249,19 +383,14 @@ int* getLinesOfAlreadyDeclaredVars(char* fileContent, int nbLines, lineLevels* p
         for(y=0;y<nbGlobal[i];y++){
             int stateVar = checkIfGlobalExistInGlobal(globalVars, nbGlobal, i, y);
             if(stateVar){
-                printf("RE-DECLARE FINDED FOR %s\n",globalVars[i][y]);
                 int varLine = getLineOfVar(globalVars[i][y]);
                 tabOfLines[varLine]++;
             }
         }
     }
 
-    //! Parcourir les variables des niveaux primaires ET leurs fils
-    //!  - Repérer dans quelle structure fille la plus basse nous sommes (ou primaire le cas échéant)
-    //!  - Comparer avec toutes les variables déclarées a portée similaire (structure courante, puis parente, etc jusqu'aux globales)
-
     for(i=0;i<nbPrimaries;i++){
-
+        tabOfLines = goToStructSonsForCheck(primaryStructs, nbPrimaries, primaryStructs[i], tabOfLines);
     }
 
     return tabOfLines;
@@ -604,7 +733,7 @@ void verifSourceCode(char* path, int* rulesValues){
     // Regle n°6 de nombre de ligne maximum pour un fichier
     if(rulesValues[6] > 0){
         if(nbLines > rulesValues[6]){
-            printf("!! Warning Rule 6 : Too many lines for file (%d > %d)\n\n", nbLines, rulesValues[6]);
+            printf("\n!! Warning Rule 6 : Too many lines for file (%d > %d)\n\n", nbLines, rulesValues[6]);
         }
     }
 
@@ -640,7 +769,7 @@ void verifSourceCode(char* path, int* rulesValues){
 
         // Regle n°5 de nombre de caracteres maximum pour une ligne
         if(rulesValues[5] > 0){
-            if(x > rulesValues[5]){
+            if(x > rulesValues[5] && i < nbLines){
                 printf("!! Warning Rule 5 : Too many chars on line  (%d > %d)\n\n", x, rulesValues[5]);
             }
         }
@@ -1225,6 +1354,7 @@ lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels mot
                 primaryStructs[y].startLevel = i;
                 primaryStructs[y].startingLine = currLines + nbLine;
                 primaryStructs[y].identifier = motherStruct.identifier*10+structID;
+                primaryStructs[y].levelNumber = motherStruct.levelNumber + 1;
                 structID++;
                 printf("--- Struct number %d : started at %d\n",primaryStructs[y].identifier,currLines + nbLine+1);
             }
@@ -1252,6 +1382,11 @@ lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels mot
             primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
             //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
             primaryStructs[y].declaredVars = levelVarStorage(fileContent, primaryStructs[y]);
+            //!         On stock l'adresse mémoire de la structure parente
+            primaryStructs[y].dadAddr = motherStruct.identifier;
+
+            //! levelNumber + identifier du parent (dans dadAddr accessible comme ci dessous) permet de retrouver le parent d'une structure
+            printf("---- TEST FOR STRUCT %d ON LEVEL %d -> DAD IS %d ON LEVEL %d\n",primaryStructs[y].identifier, primaryStructs[y].levelNumber, primaryStructs[y].dadAddr, motherStruct.levelNumber);
 
             y++;
         }
@@ -1286,6 +1421,7 @@ lineLevels* getAllLevels(char* fileContent, int nbPrimaries){
                 primaryStructs[y].startLevel = i;
                 primaryStructs[y].startingLine = nbLine;
                 primaryStructs[y].identifier = structID;
+                primaryStructs[y].levelNumber = 1;
                 structID++;
                 printf("\nStruct number %d : started at %d\n",primaryStructs[y].identifier,nbLine+1);
             }
