@@ -21,6 +21,7 @@ test.lconf
 
 - variable-assignment-type = on
 - function-parameters-type = on
+- variable-no-double-declaration = on
 
 
 =excludedFiles

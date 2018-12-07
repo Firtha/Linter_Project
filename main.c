@@ -168,9 +168,20 @@ PARTIE BONUS :
 
 */
 
+//! A FAIRE :
+//!  - VARIABLE DECLAREE MAIS PAS UTILISEE
+//!     o Chercher, pour chaque variable déclarée de chaque niveau, une utilisation (présence du nom de variable de facon distincte)
+//!     o >> Chercher dans le niveau courant et les niveaux fils <<
+//!  - VARIABLE UTILISEE MAIS PAS DECLAREE
+//!     o Chercher, dans des affectations / opération / envoi de paramètres, des noms de variable distincts et comparer aux vars
+//!     o >> Chercher dans le niveau courant et les niveaux parents <<
+//!  - AFFECTION DE VARIABLE AVEC LES BONS TYPES
+//!     o Chercher une affectation de variable, identifié les deux (ou plus) variables entrant en jeu, repérer le type et comparer
+//!     o >> Chercher dans le niveau courant et les niveaux parents <<
+
 int main(int argc, char **argv)
 {
-    char rulesName[16][50] = {"array-bracket-eol","operators-spacing","comma-spacing","indent","comments-header","max-line-numbers","max-file-line-numbers","no-trailing-spaces","no-multi-declaration","unused-variable","undeclared-variable","no-prototype","unused-function","undeclared-function","variable-assignment-type","function-parameters-type"};
+    char rulesName[17][50] = {"array-bracket-eol","operators-spacing","comma-spacing","indent","comments-header","max-line-numbers","max-file-line-numbers","no-trailing-spaces","no-multi-declaration","unused-variable","undeclared-variable","no-prototype","unused-function","undeclared-function","variable-assignment-type","function-parameters-type","variable-no-double-declaration"};
 
     char initConf[128] = "conf/main.lconf";
     int i;
@@ -281,7 +292,7 @@ int main(int argc, char **argv)
             }
 
             printf("\n%d Regles sont actives :\n",nbRuleActive);
-            for(i=0;i<16;i++){
+            for(i=0;i<17;i++){
                 if(rulesValues[i] > 0){
                     printf("- Numero %d : %s = ",i+1,rulesName[i]);
                 }
@@ -773,9 +784,9 @@ void verifSourceCode(char* path, int* rulesValues){
         }
 
         // Regle a définir
-        if(1 == 1){
+        if(rulesValues[16] > 0){
             if(tabOfLinesForDoubleDeclar[i] > 0 && i < nbLines){
-                printf("!! FATAL ERROR : Var already declared\n");
+                printf("!! Warning Bonus Rule 16 : Var already declared in scope\n");
             }
         }
     }
@@ -1629,9 +1640,9 @@ char** getConfExtends(char* fileContent){
 
 int* getConfRules(char* fileContent){
     // Noms de chaque règles, permet comparaison pour repérage des règles en cours de traitement
-    char rulesName[16][50] = {"array-bracket-eol","operators-spacing","comma-spacing","indent","comments-header","max-line-numbers","max-file-line-numbers","no-trailing-spaces","no-multi-declaration","unused-variable","undeclared-variable","no-prototype","unused-function","undeclared-function","variable-assignment-type","function-parameters-type"};
+    char rulesName[17][50] = {"array-bracket-eol","operators-spacing","comma-spacing","indent","comments-header","max-line-numbers","max-file-line-numbers","no-trailing-spaces","no-multi-declaration","unused-variable","undeclared-variable","no-prototype","unused-function","undeclared-function","variable-assignment-type","function-parameters-type","variable-no-double-declaration"};
 
-    int* tab = malloc(sizeof(int)*16);
+    int* tab = malloc(sizeof(int)*17);
     int currRule;
     int ruleValue;
     int i;
@@ -1639,11 +1650,9 @@ int* getConfRules(char* fileContent){
     int x;
 
     //! Initialisation a -1 pour repérer les règles non définis dans le fichier de config lu
-    for(i=0;i<16;i++){
+    for(i=0;i<17;i++){
         tab[i] = -1;
     }
-
-    if(testDisplay){printf("Starting getConfRules\n");}
 
     char* tmpRuleName = NULL;
     int lengthFile = strlen(fileContent);
@@ -1652,10 +1661,8 @@ int* getConfRules(char* fileContent){
     int searchingState = 0;
     for(i=0;i<lengthFile;i++){
         if(fileContent[i] == '=' && fileContent[i+1] == 'r' && fileContent[i+2] == 'u' && fileContent[i+3] == 'l' && fileContent[i+4] == 'e' && fileContent[i+5] == 's'){
-            if(testDisplay){printf("=rules spotted\n");}
             searchingState = 1;
         }else if(fileContent[i] == '=' && fileContent[i+1] != ' '){
-            if(testDisplay){printf("Ending =rules\n");}
             searchingState = 0;
         }
 
@@ -1668,8 +1675,6 @@ int* getConfRules(char* fileContent){
                 tmpRuleName = malloc(sizeof(char)*50);
                 i = i+2;
 
-                if(testDisplay){printf("\n\nRule starting line\n");}
-
                 // On isole le nom de la règle
                 while(fileContent[i+x] != ' '){
                     tmpRuleName[x] = fileContent[i+x];
@@ -1678,24 +1683,18 @@ int* getConfRules(char* fileContent){
                 tmpRuleName[x] = '\0';
                 i = i + x + 3;
 
-                if(testDisplay){printf("Rule : %s spotted\n",tmpRuleName);}
-
                 // On retrouve de quelle règle il s'agit
-                for(j=0;j<16;j++){
+                for(j=0;j<17;j++){
                     if(strcmp(tmpRuleName,rulesName[j]) == 0){
                         currRule = j;
                         j = 16;
                     }
                 }
 
-                if(testDisplay){printf("Rule is number %d\n",currRule);}
-
                 // On recupere la valeur associée a la regle dans le cas ou celle ci est différente de OFF (0)
                 if((fileContent[i] == 'o' && fileContent[i+1] == 'n') || (fileContent[i] == 'O' && fileContent[i+1] == 'N')){
-                    if(testDisplay){printf("Rule is ON\n\n\n");}
                     tab[currRule] = 1;
                 }else if((fileContent[i] == 'o' && fileContent[i+1] == 'f' && fileContent[i+2] == 'f') || (fileContent[i] == 'O' && fileContent[i+1] == 'F' && fileContent[i+2] == 'F')){
-                    if(testDisplay){printf("Rule is OFF\n\n\n");}
                     tab[currRule] = 0;
                 }else{
                     x = 0;
@@ -1706,8 +1705,6 @@ int* getConfRules(char* fileContent){
                         x++;
                     }
 
-                    if(testDisplay){printf("Rule is ON with %d as value\n\n\n",ruleValue);}
-
                     tab[currRule] = ruleValue;
                 }
             }
@@ -1716,20 +1713,11 @@ int* getConfRules(char* fileContent){
         }
     }
 
-    if(testDisplay){printf("Ending getConfRules\n");}
-
-    if(testDisplay){
-        printf("\n\nEtat des 16 regles :\n");
-        for(i=0;i<16;i++){
-            printf("%d - %s --> %d\n",i,rulesName[i],tab[i]);
-        }
-    }
-
     return tab;
 }
 
 int* agregateRulesValues(int nbExtend, char** fileNames){
-    int* tab = malloc(sizeof(int)*16);
+    int* tab = malloc(sizeof(int)*17);
     int* tabSpec;
     int i;
     int x;
@@ -1737,7 +1725,7 @@ int* agregateRulesValues(int nbExtend, char** fileNames){
     char* fileContent;
     char* tmpName;
 
-    for(i=0;i<16;i++){
+    for(i=0;i<17;i++){
         tab[i] = 0;
     }
 
@@ -1749,7 +1737,7 @@ int* agregateRulesValues(int nbExtend, char** fileNames){
         fileContent = getFileContent(tmpName);
         tabSpec = getConfRules(fileContent);
 
-        for(x=0;x<16;x++){
+        for(x=0;x<17;x++){
             if(tabSpec[x] != -1){
                 tab[x] = tabSpec[x];
             }
@@ -1763,7 +1751,7 @@ int* agregateRulesValues(int nbExtend, char** fileNames){
     fileContent = getFileContent("conf/main.lconf");
     tabSpec = getConfRules(fileContent);
 
-    for(x=0;x<16;x++){
+    for(x=0;x<17;x++){
         if(tabSpec[x] != -1){
             tab[x] = tabSpec[x];
         }
