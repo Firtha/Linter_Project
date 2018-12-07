@@ -171,19 +171,135 @@ PARTIE BONUS :
 //! A FAIRE :
 //!  - VARIABLE DECLAREE MAIS PAS UTILISEE
 //!     o Chercher, pour chaque variable déclarée de chaque niveau, une utilisation (présence du nom de variable de facon distincte)
-//!     o >> Chercher dans le niveau courant et les niveaux fils <<
-int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* primaryStructs, int nbPrimaries){
+//!     o >> Chercher dans le niveau courant et les niveaux fils <<                                                 isGlobal : 1 ou 0
+int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* primaryStructs, int nbPrimaries, int isGlobal, int levelNumber, int identifier){
     //! Informations de la variable a traiter
     int lineVar = getLineOfVar(nameVar);
     char* nameOfVar = extractNameFromNameVar(nameVar);
 
-    int i;
+    int currLine = 0;
 
-    int length = strlen(fileContent);
-    for(i=0;i<length;i++){
-        //! PARCOURIR LE FICHIER POUR RECHERCHE
-        //!     DOIT UNIQUEMENT CIBLER LES LIGNES SITUES EN DESSOUS DE LA DECLARATION
-        //!     DOIT UNIQUEMENT CIBLER LES STRUCTURES ACCESSIBLES
+    int i;
+    int x;
+    int nbErr;
+    int isNotVar = 0;
+    int simpleQuote;
+    int doubleQuote;
+
+    //! AMELIORATION A FAIRE :
+    //!  ==> NE TRAITER QUE LES STRUCTURES ACCESSIBLES EN TERME DE PORTEE DE VARIABLE
+
+    //! Si la variable est globale, on traite toutes les lignes situées en dessous, peu importe dans quelle structure elles se trouvent
+    if(isGlobal == 1){
+        int length = strlen(fileContent);
+        for(i=0;i<length;i++){
+            if(fileContent[i] == '\n'){currLine++;}
+            if(currLine > lineVar){
+                x = 0;
+                nbErr = 0;
+                if(fileContent[i] == 34 && doubleQuote == 0){
+                    doubleQuote = 1;
+                }else if(fileContent[i] == 34 && doubleQuote == 1){
+                    doubleQuote = 0;
+                }
+                if(fileContent[i] == 39 && doubleQuote == 0){
+                    simpleQuote = 1;
+                }else if(fileContent[i] == 39 && doubleQuote == 1){
+                    simpleQuote = 0;
+                }
+                if(fileContent[i] == '{' || fileContent[i] == '(' || fileContent[i] == '['){
+                    isNotVar++;
+                }
+                if(fileContent[i] == '}' || fileContent[i] == ')' || fileContent[i] == ']'){
+                    isNotVar--;
+                }
+                // Si toutes les conditions sont réunies pour que le début de mot soit éligible en tant que var a part entière
+                if(fileContent[i] == nameOfVar[x] && (fileContent[i-1] == ' ' || fileContent[i-1] == '\n' || fileContent[i-1] == '\t') && isNotVar == 0 && simpleQuote == 0 && doubleQuote == 0){
+                    int lengthVar = strlen(nameOfVar);
+                    while(x < lengthVar && (fileContent[i+x] != ';' || fileContent[i+x+1] != '\n')){
+                        if(fileContent[i+x] != nameOfVar[x]){
+                            nbErr++;
+                        }
+                        x++;
+                    }
+                    i = i + x;
+                    //! Si la variable ne se termine pas par un char non textuel (opérateur, espace, virgule, etc...), le nom n'est pas terminé
+                    if(isText(fileContent[i])){
+                        nbErr++;
+                    }
+                    if(nbErr == 0){
+                        //! Variable repérée
+                        printf("Var %s Spotted on line %d !\n",nameOfVar, currLine);
+                        return 1;
+                    }
+                }
+            }
+        }
+    }else{
+        //! SI LA VARIABLE APPARTIENT A UNE STRUCTURE
+        //!  - REPERAGE DE LA STRUCTURE CIBLE (via levelNumber et identifier)
+        lineLevels currStruct = getStructWithLevelAndIdentifier(levelNumber, identifier, primaryStructs, nbPrimaries);
+
+        int currLine = currStruct.startingLine;
+
+        int startIndex = currStruct.startLevel;
+        int endIndex = currStruct.endLevel;
+
+        //!  - RECHERCHE SUR LES STRUCTURES ACCESSIBLES
+        //!     o Structure courrante
+        for(i=startIndex;i<endIndex;i++){
+            if(fileContent[i] == '\n'){
+                currLine++;
+            }
+            if(currLine > lineVar){
+                x = 0;
+                nbErr = 0;
+                if(fileContent[i] == 34 && doubleQuote == 0){
+                    doubleQuote = 1;
+                }else if(fileContent[i] == 34 && doubleQuote == 1){
+                    doubleQuote = 0;
+                }
+                if(fileContent[i] == 39 && doubleQuote == 0){
+                    simpleQuote = 1;
+                }else if(fileContent[i] == 39 && doubleQuote == 1){
+                    simpleQuote = 0;
+                }
+                if(fileContent[i] == '{' || fileContent[i] == '(' || fileContent[i] == '['){
+                    isNotVar++;
+                }
+                if(fileContent[i] == '}' || fileContent[i] == ')' || fileContent[i] == ']'){
+                    isNotVar--;
+                }
+                // Si toutes les conditions sont réunies pour que le début de mot soit éligible en tant que var a part entière
+                if(fileContent[i] == nameOfVar[x] && (fileContent[i-1] == ' ' || fileContent[i-1] == '\n' || fileContent[i-1] == '\t') && isNotVar == 0 && simpleQuote == 0 && doubleQuote == 0){
+                    int lengthVar = strlen(nameOfVar);
+                    while(x < lengthVar && (fileContent[i+x] != ';' || fileContent[i+x+1] != '\n')){
+                        if(fileContent[i+x] != nameOfVar[x]){
+                            nbErr++;
+                        }
+                        x++;
+                    }
+                    i = i + x;
+                    //! Si la variable ne se termine pas par un char non textuel (opérateur, espace, virgule, etc...), le nom n'est pas terminé
+                    if(isText(fileContent[i])){
+                        nbErr++;
+                    }
+                    if(nbErr == 0){
+                        //! Variable repérée
+                        printf("Var %s Spotted on line %d !\n",nameOfVar, currLine);
+                        return 1;
+                    }
+                }
+            }
+        }
+
+
+        //!     o Structures filles
+        int nbSons = currStruct.nbSons;
+        for(i=0;i<nbSons;i++){
+            //! Appel une fonction qui parcours tous les fils et les fils des fils de la structure courrante
+            //!  - Traitement similaire a ceux mis en jeu ci-dessus mais en itérant sur tous les fils, sans oubli
+        }
     }
 
     return 0;
@@ -205,8 +321,8 @@ int* getVarsDeclaredButUnused(char* fileContent, int nbLines, lineLevels* primar
     for(i=0;i<6;i++){
         for(y=0;y<nbGlobal[i];y++){
             int lineVar = getLineOfVar(globalVars[i][y]);
-            int stateFct = checkIfVarUsedInStructAndSons(fileContent, globalVars[i][y], primaryStructs, nbPrimaries);
-            if(stateFct){
+            int stateFct = checkIfVarUsedInStructAndSons(fileContent, globalVars[i][y], primaryStructs, nbPrimaries, 1, 0, 0);
+            if(stateFct == 0){
                 tabOfLines[lineVar]++;
             }
         }
@@ -251,7 +367,13 @@ int* getVarsUsedButUndeclared(){
 //!     o >> Chercher dans le niveau courant et les niveaux parents <<
 int* getAffectWithWrongType(){
 
-    //! TODO
+    //! Recherche d'affectation de variables (var1 = var2 OU var1 = var2 + var3, ect...)
+    //! Pour chaque affectation repérée : Isoler les deux variables
+    //!  - Rechercher la variable au sein des tableaux de variables des structures accessibles
+    //!  - Recupérer le type associé a chaque variable
+    //!  - Comparer les deux types (ou plus) récupérés, si ils sont différents : Erreur sur ligne
+
+    //! NB : Prévoir un comportement lorsque la variable a rechercher est utilisé mais pas déclarée, et donc introuvable
 
     return 0;
 }
