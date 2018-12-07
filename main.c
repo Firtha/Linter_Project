@@ -172,12 +172,89 @@ PARTIE BONUS :
 //!  - VARIABLE DECLAREE MAIS PAS UTILISEE
 //!     o Chercher, pour chaque variable déclarée de chaque niveau, une utilisation (présence du nom de variable de facon distincte)
 //!     o >> Chercher dans le niveau courant et les niveaux fils <<
+int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* primaryStructs, int nbPrimaries){
+    //! Informations de la variable a traiter
+    int lineVar = getLineOfVar(nameVar);
+    char* nameOfVar = extractNameFromNameVar(nameVar);
+
+    int i;
+
+    int length = strlen(fileContent);
+    for(i=0;i<length;i++){
+        //! PARCOURIR LE FICHIER POUR RECHERCHE
+        //!     DOIT UNIQUEMENT CIBLER LES LIGNES SITUES EN DESSOUS DE LA DECLARATION
+        //!     DOIT UNIQUEMENT CIBLER LES STRUCTURES ACCESSIBLES
+    }
+
+    return 0;
+}
+
+int* getVarsDeclaredButUnused(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries){
+    int* tabOfLines = malloc(sizeof(int)*nbLines);
+
+    int* nbGlobal = primaryStructs[0].nbGlobal;
+    char*** globalVars = primaryStructs[0].globalVars;
+
+    int i;
+    int y;
+
+    for(i=0;i<nbLines;i++){
+        tabOfLines[i] = 0;
+    }
+
+    for(i=0;i<6;i++){
+        for(y=0;y<nbGlobal[i];y++){
+            int lineVar = getLineOfVar(globalVars[i][y]);
+            int stateFct = checkIfVarUsedInStructAndSons(fileContent, globalVars[i][y], primaryStructs, nbPrimaries);
+            if(stateFct){
+                tabOfLines[lineVar]++;
+            }
+        }
+    }
+
+    //! Verif avec les variables globales
+    //!  PUIS
+    //! Verif sur chaque primaires et ses filles
+    //!  - Pour chaque variable, rechercher, dans la portée accessible, son utilisation au sein du code
+
+    return tabOfLines;
+}
+
 //!  - VARIABLE UTILISEE MAIS PAS DECLAREE
 //!     o Chercher, dans des affectations / opération / envoi de paramètres, des noms de variable distincts et comparer aux vars
 //!     o >> Chercher dans le niveau courant et les niveaux parents <<
+int* getVarsUsedButUndeclared(){
+    //int* tabOfLines = malloc(sizeof(int)*nbLines);
+
+    //int* nbGlobal = primaryStructs[0].nbGlobal;
+    //char*** globalVars = primaryStructs[0].globalVars;
+
+    //int i;
+    //int y;
+
+    //for(i=0;i<nbLines;i++){
+    //    tabOfLines[i] = 0;
+    //}
+
+    //! Recherche de variables au sein du code
+
+    //! Pour chaque variable trouvée : vérifier avec toutes les variables de portées accessibles
+    //!  - Globales (situées au dessus)
+    //!  - De la structure courante et des parentes
+
+    //return tabOfLines;
+    return 0;
+}
+
 //!  - AFFECTION DE VARIABLE AVEC LES BONS TYPES
 //!     o Chercher une affectation de variable, identifié les deux (ou plus) variables entrant en jeu, repérer le type et comparer
 //!     o >> Chercher dans le niveau courant et les niveaux parents <<
+int* getAffectWithWrongType(){
+
+    //! TODO
+
+    return 0;
+}
 
 int main(int argc, char **argv)
 {
@@ -545,7 +622,7 @@ int checkIfExistInStruct(lineLevels* primaryStructs, int nbPrimaries, lineLevels
         }
     }
 
-    //! Verification de déclaration dans les variables des structures parentes (s'il y en a)
+    //! Verification de déclaration dans les variables des structures parentes (s'il y en a, n'affecte donc pas les primaires)
     //!  - Appel d'une fonction parcourant les structures jusqu'a retrouver le couple levelNumber (dadLevel) + identifier (dadIdentifier)
     while(currStruct.levelNumber > 1){
         int dadLevel = currStruct.levelNumber - 1;
