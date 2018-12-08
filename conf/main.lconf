@@ -13,7 +13,7 @@ test.lconf
 - no-trailing-spaces = off
 
 - no-multi-declaration = on
-- unused-variable = off
+- unused-variable = on
 - undeclared-variable = off
 - no-prototype = off
 - unused-function = off

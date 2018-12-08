@@ -1,7 +1,8 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <dirent.h>
-#include <string.h>
+#include <stdio.h>          //! Projet Linter - Langage C
+#include <stdlib.h>         //!     Etudiants :
+#include <dirent.h>         //!         Svensson Jeremy
+#include <string.h>         //!         Remy
+                            //!         Michael
 
 typedef struct lineLevels lineLevels;
 struct lineLevels{
@@ -90,7 +91,7 @@ int* structNbVarsOnLines(lineLevels currStruct, int* tabOfLines);
 
 // Fonctions de reperage de deuxieme declaration d'une variable
 int* getLinesOfAlreadyDeclaredVars(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries);
-int* goToStructSonsForCheck(lineLevels* primaryStructs, int nbPrimaries, lineLevels currStruct, int* tabOfLines);
+int* goToStructSonsForCheck(lineLevels* primaryStructs, int nbPrimaries, lineLevels currStruct, int* tabOfLines, int chxExec, char* fileContent);
 
 int checkIfGlobalExistInGlobal(char*** globalVars, int* nbGlobal, int typeIndex, int varIndex);
 int checkIfExistInStruct(lineLevels* primaryStructs, int nbPrimaries, lineLevels currStruct, int typeIndex, int varIndex);
@@ -185,18 +186,31 @@ int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* 
     int isNotVar = 0;
     int simpleQuote;
     int doubleQuote;
+    int commentary;
+    int bigComment = 0;
+    int lineStart;
+    int isDeclar;
 
     //! AMELIORATION A FAIRE :
-    //!  ==> NE TRAITER QUE LES STRUCTURES ACCESSIBLES EN TERME DE PORTEE DE VARIABLE
+    //!  ==> NE PAS TRAITER LES LIGNES RELATIVES A DES DECLARATIONS DE VARIABLES !!!!!!
 
     //! Si la variable est globale, on traite toutes les lignes situées en dessous, peu importe dans quelle structure elles se trouvent
     if(isGlobal == 1){
         int length = strlen(fileContent);
         for(i=0;i<length;i++){
-            if(fileContent[i] == '\n'){currLine++;}
+            if(fileContent[i] == '\n'){currLine++;commentary = 0;i++;lineStart = i;isDeclar = lookForType(fileContent, lineStart);}
             if(currLine > lineVar){
                 x = 0;
                 nbErr = 0;
+                if(fileContent[i] == '/' && fileContent[i+1] == '*'){
+                    bigComment = 1;
+                }
+                if(fileContent[i] == '*' && fileContent[i+1] == '/'){
+                    bigComment = 0;
+                }
+                if(fileContent[i] == '/' && fileContent[i+1] == '/'){
+                    commentary = 1;
+                }
                 if(fileContent[i] == 34 && doubleQuote == 0){
                     doubleQuote = 1;
                 }else if(fileContent[i] == 34 && doubleQuote == 1){
@@ -214,7 +228,7 @@ int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* 
                     isNotVar--;
                 }
                 // Si toutes les conditions sont réunies pour que le début de mot soit éligible en tant que var a part entière
-                if(fileContent[i] == nameOfVar[x] && (fileContent[i-1] == ' ' || fileContent[i-1] == '\n' || fileContent[i-1] == '\t') && isNotVar == 0 && simpleQuote == 0 && doubleQuote == 0){
+                if(fileContent[i] == nameOfVar[x] && (fileContent[i-1] == ' ' || fileContent[i-1] == '\n' || fileContent[i-1] == '\t') && isNotVar == 0 && simpleQuote == 0 && doubleQuote == 0 && commentary == 0 && bigComment == 0 && isDeclar == 0){
                     int lengthVar = strlen(nameOfVar);
                     while(x < lengthVar && (fileContent[i+x] != ';' || fileContent[i+x+1] != '\n')){
                         if(fileContent[i+x] != nameOfVar[x]){
@@ -229,8 +243,8 @@ int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* 
                     }
                     if(nbErr == 0){
                         //! Variable repérée
-                        printf("Var %s Spotted on line %d !\n",nameOfVar, currLine);
-                        return 1;
+                        printf("Var %s Use Spotted on line %d !\n",nameOfVar, currLine);
+                        return 0;
                     }
                 }
             }
@@ -246,14 +260,27 @@ int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* 
         int endIndex = currStruct.endLevel;
 
         //!  - RECHERCHE SUR LES STRUCTURES ACCESSIBLES
-        //!     o Structure courrante
+        //!     o Structure courrante + Structure filles contenus dans la courrante
         for(i=startIndex;i<endIndex;i++){
             if(fileContent[i] == '\n'){
                 currLine++;
+                commentary = 0;
+                i++;
+                lineStart = i;
+                isDeclar = lookForType(fileContent, lineStart);
             }
             if(currLine > lineVar){
                 x = 0;
                 nbErr = 0;
+                if(fileContent[i] == '/' && fileContent[i+1] == '*'){
+                    bigComment = 1;
+                }
+                if(fileContent[i] == '*' && fileContent[i+1] == '/'){
+                    bigComment = 0;
+                }
+                if(fileContent[i] == '/' && fileContent[i+1] == '/'){
+                    commentary = 1;
+                }
                 if(fileContent[i] == 34 && doubleQuote == 0){
                     doubleQuote = 1;
                 }else if(fileContent[i] == 34 && doubleQuote == 1){
@@ -271,7 +298,7 @@ int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* 
                     isNotVar--;
                 }
                 // Si toutes les conditions sont réunies pour que le début de mot soit éligible en tant que var a part entière
-                if(fileContent[i] == nameOfVar[x] && (fileContent[i-1] == ' ' || fileContent[i-1] == '\n' || fileContent[i-1] == '\t') && isNotVar == 0 && simpleQuote == 0 && doubleQuote == 0){
+                if(fileContent[i] == nameOfVar[x] && (fileContent[i-1] == ' ' || fileContent[i-1] == '\n' || fileContent[i-1] == '\t') && isNotVar == 0 && simpleQuote == 0 && doubleQuote == 0 && commentary == 0 && bigComment == 0 && isDeclar == 0){
                     int lengthVar = strlen(nameOfVar);
                     while(x < lengthVar && (fileContent[i+x] != ';' || fileContent[i+x+1] != '\n')){
                         if(fileContent[i+x] != nameOfVar[x]){
@@ -287,23 +314,17 @@ int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* 
                     if(nbErr == 0){
                         //! Variable repérée
                         printf("Var %s Spotted on line %d !\n",nameOfVar, currLine);
-                        return 1;
+                        return 0;
                     }
                 }
             }
         }
-
-
-        //!     o Structures filles
-        int nbSons = currStruct.nbSons;
-        for(i=0;i<nbSons;i++){
-            //! Appel une fonction qui parcours tous les fils et les fils des fils de la structure courrante
-            //!  - Traitement similaire a ceux mis en jeu ci-dessus mais en itérant sur tous les fils, sans oubli
-        }
     }
 
-    return 0;
+    return 1;
 }
+
+
 
 int* getVarsDeclaredButUnused(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries){
     int* tabOfLines = malloc(sizeof(int)*nbLines);
@@ -318,20 +339,21 @@ int* getVarsDeclaredButUnused(char* fileContent, int nbLines, lineLevels* primar
         tabOfLines[i] = 0;
     }
 
+    //! Verif avec les variables globales
     for(i=0;i<6;i++){
         for(y=0;y<nbGlobal[i];y++){
             int lineVar = getLineOfVar(globalVars[i][y]);
             int stateFct = checkIfVarUsedInStructAndSons(fileContent, globalVars[i][y], primaryStructs, nbPrimaries, 1, 0, 0);
-            if(stateFct == 0){
+            if(stateFct){
                 tabOfLines[lineVar]++;
             }
         }
     }
 
-    //! Verif avec les variables globales
-    //!  PUIS
     //! Verif sur chaque primaires et ses filles
-    //!  - Pour chaque variable, rechercher, dans la portée accessible, son utilisation au sein du code
+    for(i=0;i<nbPrimaries;i++){
+        tabOfLines = goToStructSonsForCheck(primaryStructs, nbPrimaries, primaryStructs[i], tabOfLines, 2, fileContent);
+    }
 
     return tabOfLines;
 }
@@ -623,7 +645,6 @@ int* getMultiDeclarOnLine(char* fileContent, lineLevels* primaryStructs, int nbP
 //!  - Traitement réalisé par les deux fonctions existantes + une nouvelle
 //! Le tableau permettra, dans verifSourceCode, de repérer les lignes problèmatiques
 int* getLinesOfAlreadyDeclaredVars(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries){
-    char types[6][15] = {"int","float","char","double","long","struct"};
     int* tabOfLines = malloc(sizeof(int)*nbLines);
 
     int* nbGlobal = primaryStructs[0].nbGlobal;
@@ -634,11 +655,6 @@ int* getLinesOfAlreadyDeclaredVars(char* fileContent, int nbLines, lineLevels* p
 
     for(i=0;i<nbLines;i++){
         tabOfLines[i] = 0;
-    }
-
-    printf("Variables globales :\n");
-    for(i=0;i<6;i++){
-        printf("Var of type %s - %d vars\n",types[i],nbGlobal[i]);
     }
 
     //! Comparaison des variables globales avec les variables globales (seule portée contradictoire avec source global)
@@ -653,7 +669,7 @@ int* getLinesOfAlreadyDeclaredVars(char* fileContent, int nbLines, lineLevels* p
     }
 
     for(i=0;i<nbPrimaries;i++){
-        tabOfLines = goToStructSonsForCheck(primaryStructs, nbPrimaries, primaryStructs[i], tabOfLines);
+        tabOfLines = goToStructSonsForCheck(primaryStructs, nbPrimaries, primaryStructs[i], tabOfLines, 1, fileContent);
     }
 
     return tabOfLines;
@@ -686,7 +702,7 @@ int checkIfGlobalExistInGlobal(char*** globalVars, int* nbGlobal, int typeIndex,
 
 //! Appel checkIfExistInStruct pour chaque var de la structure courrante
 //!  - Appel ses filles pour traitement identique si celles ci existent
-int* goToStructSonsForCheck(lineLevels* primaryStructs, int nbPrimaries, lineLevels currStruct, int* tabOfLines){
+int* goToStructSonsForCheck(lineLevels* primaryStructs, int nbPrimaries, lineLevels currStruct, int* tabOfLines, int chxExec, char* fileContent){
     int* nbVars = currStruct.nbVars;
     char*** declaredVars = currStruct.declaredVars;
 
@@ -695,7 +711,13 @@ int* goToStructSonsForCheck(lineLevels* primaryStructs, int nbPrimaries, lineLev
 
     for(i=0;i<6;i++){
         for(y=0;y<nbVars[i];y++){
-            int stateVar = checkIfExistInStruct(primaryStructs, nbPrimaries, currStruct, i, y);
+
+            int stateVar;
+            if(chxExec == 1){
+                stateVar = checkIfExistInStruct(primaryStructs, nbPrimaries, currStruct, i, y);
+            }else{
+                stateVar = checkIfVarUsedInStructAndSons(fileContent, declaredVars[i][y], primaryStructs, nbPrimaries, 0, currStruct.levelNumber, currStruct.identifier);
+            }
             if(stateVar){
                 int varLine = getLineOfVar(declaredVars[i][y]);
                 tabOfLines[varLine]++;
@@ -707,7 +729,7 @@ int* goToStructSonsForCheck(lineLevels* primaryStructs, int nbPrimaries, lineLev
     if(nbSons > 0){
         lineLevels* sonStructs = currStruct.sonStructs;
         for(i=0;i<nbSons;i++){
-            tabOfLines = goToStructSonsForCheck(primaryStructs, nbPrimaries, sonStructs[i], tabOfLines);
+            tabOfLines = goToStructSonsForCheck(primaryStructs, nbPrimaries, sonStructs[i], tabOfLines, chxExec, fileContent);
         }
     }
 
@@ -918,8 +940,6 @@ void verifSourceCode(char* path, int* rulesValues){
         primaryStructs[i] = assignGlobalTabsInSons(primaryStructs[i], globalVars, nbGlobalVars);
     }
 
-    printf("\nLEVELS COUNTED : %d\n\n",nbPrimaryLevels);
-
     for(i=0;i<lengthFile;i++){
         if(fileContent[i] == '\n'){
             nbLines++;
@@ -930,6 +950,8 @@ void verifSourceCode(char* path, int* rulesValues){
     int* tabOfLinesForDoubleDeclar = getLinesOfAlreadyDeclaredVars(fileContent, nbLines, primaryStructs, nbPrimaryLevels);
 
     int* multiDeclarLines = getMultiDeclarOnLine(fileContent, primaryStructs, nbPrimaryLevels, nbLines);
+
+    int* unusedVars = getVarsDeclaredButUnused(fileContent, nbLines, primaryStructs, nbPrimaryLevels);
 
     // Regle n°6 de nombre de ligne maximum pour un fichier
     if(rulesValues[6] > 0){
@@ -982,6 +1004,13 @@ void verifSourceCode(char* path, int* rulesValues){
             }
         }
 
+        // Regle n°9 concernant les variables déclarées mais inutilisées
+        if(rulesValues[9] > 0){
+            if(unusedVars[i] > 1 && i < nbLines){
+                printf("!! Warning Rule 9 : Unused var spotted (%d vars unused on line)\n\n",unusedVars[i]);
+            }
+        }
+
         // Regle a définir
         if(rulesValues[16] > 0){
             if(tabOfLinesForDoubleDeclar[i] > 0 && i < nbLines){
@@ -993,6 +1022,8 @@ void verifSourceCode(char* path, int* rulesValues){
 
     printf("\n\n\n");
     freeAllStructs(primaryStructs, nbPrimaryLevels);
+    free(tabOfLinesForDoubleDeclar);
+    free(unusedVars);
     free(multiDeclarLines);
     free(fileContent);
 
@@ -1051,7 +1082,6 @@ int* getNbGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrimar
         if(i >= primaryStructs[nbSon].startLevel){
             i = primaryStructs[nbSon].endLevel;
             nbLines = primaryStructs[nbSon].endingLine;
-            printf("GetNbGlobalVars : LINE %d TO %d : JUMP FROM %d TO %d\n", primaryStructs[nbSon].startingLine+1, nbLines+1, primaryStructs[nbSon].startLevel, primaryStructs[nbSon].endLevel);
             nbSon++;
         }
 
@@ -1077,11 +1107,6 @@ int* getNbGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrimar
         if(typeFinded == 1){
             nbVars[typeIndex] += countVarsOnLine(fileContent, i);
         }
-    }
-
-    printf("Global Vars : \n");
-    for(i=0;i<6;i++){
-        printf("%s -> %d vars spotted\n",types[i],nbVars[i]);
     }
 
     return nbVars;
@@ -1145,7 +1170,6 @@ char*** getGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrima
         if(i >= primaryStructs[nbSon].startLevel){
             i = primaryStructs[nbSon].endLevel;
             nbLines = primaryStructs[nbSon].endingLine;
-            printf("GetGlobalVars : LINE %d TO %d : JUMP FROM %d TO %d\n", primaryStructs[nbSon].startingLine+1, nbLines+1, primaryStructs[nbSon].startLevel, primaryStructs[nbSon].endLevel);
             nbSon++;
         }
 
@@ -1176,13 +1200,6 @@ char*** getGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrima
                 strcpy(globalVars[typeIndex][tabIndex[typeIndex]], extractedVarOfLine[z]);
                 tabIndex[typeIndex]++;
             }
-        }
-    }
-
-    printf("Liste des vars globales extraites :\n");
-    for(i=0;i<6;i++){
-        for(y=0;y<nbVars[i];y++){
-            printf("%s - %s\n",types[i], globalVars[i][y]);
         }
     }
 
@@ -1488,15 +1505,6 @@ char*** levelVarStorage(char* fileContent, lineLevels currStruct){
         y++;
     }
 
-    printf("\n\nStruct %d ALL VARS :\n",currStruct.identifier);
-    for(i=0;i<6;i++){
-        printf("VARS OF %s = %d :\n",types[i],nbVars[i]);
-        for(y=0;y<nbVars[i];y++){
-            printf("----> %s\n",structVars[i][y]);
-        }
-    }
-    printf("\n");
-
     return structVars;
 }
 
@@ -1557,7 +1565,6 @@ lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels mot
                 primaryStructs[y].identifier = motherStruct.identifier*10+structID;
                 primaryStructs[y].levelNumber = motherStruct.levelNumber + 1;
                 structID++;
-                printf("--- Struct number %d : started at %d\n",primaryStructs[y].identifier,currLines + nbLine+1);
             }
         }else if(fileContent[i] == '{' && onCount == 1){
             insideBoundaries++;
@@ -1569,25 +1576,12 @@ lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels mot
             onCount = 0;
             primaryStructs[y].endLevel = i;
             primaryStructs[y].endingLine = currLines + nbLine;
-            printf("--- Struct number %d : ended at %d\n",primaryStructs[y].identifier,currLines + nbLine+1);
 
-
-            //! TODO
-            //!     Appel de différente fonction
-            //!         Décompte nombre de fils (mais pas petit ou arrière petit fils)
             primaryStructs[y].nbSons = getNbInsiderLevels(fileContent, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
-            printf("--- Son Struct number %d : %d sons\n",primaryStructs[y].identifier,primaryStructs[y].nbSons);
-            //!         Récupération des fils dans le tableau sonStructs de la structure primaire
             primaryStructs[y].sonStructs = getInsidersLevels(fileContent, primaryStructs[y].nbSons, primaryStructs[y]);
-            //!         Décompte nombre de vars de chaque type pour allocation (var déclaré sur ce niveau mais pas sur un fils)
             primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
-            //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
             primaryStructs[y].declaredVars = levelVarStorage(fileContent, primaryStructs[y]);
-            //!         On stock l'adresse mémoire de la structure parente
             primaryStructs[y].dadAddr = motherStruct.identifier;
-
-            //! levelNumber + identifier du parent (dans dadAddr accessible comme ci dessous) permet de retrouver le parent d'une structure
-            printf("---- TEST FOR STRUCT %d ON LEVEL %d -> DAD IS %d ON LEVEL %d\n",primaryStructs[y].identifier, primaryStructs[y].levelNumber, primaryStructs[y].dadAddr, motherStruct.levelNumber);
 
             y++;
         }
@@ -1599,10 +1593,6 @@ lineLevels* getInsidersLevels(char* fileContent, int nbPrimaries, lineLevels mot
 // Retourne un tableau de structure (des majeurs, contenant a l'intérieur d'autre structures filles)
 lineLevels* getAllLevels(char* fileContent, int nbPrimaries){
     lineLevels* primaryStructs = malloc(sizeof(lineLevels)*nbPrimaries);
-
-    //! TODO : Ranger les structures dans les bons tableaux
-    //!         Primaires dans primaryStructs
-    //!         Secondaires dans le tableau de structure de sa structure parente
 
     int onCount = 0;
     int insideBoundaries = 0;
@@ -1624,7 +1614,6 @@ lineLevels* getAllLevels(char* fileContent, int nbPrimaries){
                 primaryStructs[y].identifier = structID;
                 primaryStructs[y].levelNumber = 1;
                 structID++;
-                printf("\nStruct number %d : started at %d\n",primaryStructs[y].identifier,nbLine+1);
             }
         }else if(fileContent[i] == '{' && onCount == 1){
             insideBoundaries++;
@@ -1636,19 +1625,10 @@ lineLevels* getAllLevels(char* fileContent, int nbPrimaries){
             onCount = 0;
             primaryStructs[y].endLevel = i;
             primaryStructs[y].endingLine = nbLine;
-            printf("Struct number %d : ended at %d\n",primaryStructs[y].identifier,nbLine+1);
 
-
-            //! TODO
-            //!     Appel de différente fonction
-            //!         Décompte nombre de fils (mais pas petit ou arrière petit fils)
             primaryStructs[y].nbSons = getNbInsiderLevels(fileContent, primaryStructs[y].startLevel, primaryStructs[y].endLevel);
-            printf("Struct number %d : %d sons\n",primaryStructs[y].identifier,primaryStructs[y].nbSons);
-            //!         Récupération des fils dans le tableau sonStructs de la structure primaire
             primaryStructs[y].sonStructs = getInsidersLevels(fileContent, primaryStructs[y].nbSons, primaryStructs[y]);
-            //!         Décompte nombre de vars de chaque type pour allocation (var déclaré sur ce niveau mais pas sur un fils)
             primaryStructs[y].nbVars = levelVarCount(fileContent, primaryStructs[y]);
-            //!         Récupération des vars de chaque type dans le tableau declaredVars de la structure primaire
             primaryStructs[y].declaredVars = levelVarStorage(fileContent, primaryStructs[y]);
 
             y++;
@@ -1764,8 +1744,6 @@ char* getFileContent(char* path){
 
     fclose(config);
 
-    if(testDisplay){printf("%d char in conf file :\n%s<ENDFILE>\n",lengthFile,fileContent);}
-
     return fileContent;
 }
 
@@ -1784,14 +1762,12 @@ char** getConfExtends(char* fileContent){
 
     for(i=0;i<lengthContent;i++){
         if(fileContent[i] == '=' && fileContent[i+1] == 'e' && fileContent[i+2] == 'x' && fileContent[i+3] == 't' && fileContent[i+4] == 'e' && fileContent[i+5] == 'n' && fileContent[i+6] == 'd' && fileContent[i+7] == 's'){           if(testDisplay){printf("=excluded spotted : %d\n",i);}
-            if(testDisplay){printf("=extends SPOTTED\n");}
             searchingState = 1;
             startInd = i+8;
             i = i + 7;
         }else if(fileContent[i] == '=' && fileContent[i+1] != ' '){
             endInd = i;
             searchingState = 0;
-            if(testDisplay){printf("=extends ENDED\n");}
             break;
         }
 
@@ -1818,16 +1794,12 @@ char** getConfExtends(char* fileContent){
             if(fileContent[i] != '\n'){
                 x = 0;
 
-                if(testDisplay){printf("\n\nExtendFile starting line\n");}
-
                 // On isole le nom du fichier
                 while(fileContent[i+x] != '\n'){
                     extendsFile[j][x] = fileContent[i+x];
                     x++;
                 }
                 extendsFile[j][x] = '\0';
-                if(testDisplay){printf("ExtendFile : %s spotted\n",extendsFile[j]);}
-
                 i = i + x;
                 j++;
             }
@@ -2059,13 +2031,11 @@ char** getConfExcluded(char* fileContent){
 
     for(i=0;i<lengthContent;i++){
         if(fileContent[i] == '=' && fileContent[i+1] == 'e' && fileContent[i+2] == 'x' && fileContent[i+3] == 'c' && fileContent[i+4] == 'l' && fileContent[i+5] == 'u' && fileContent[i+6] == 'd' && fileContent[i+7] == 'e' && fileContent[i+8] == 'd'){
-            if(testDisplay){printf("=excluded spotted : %d\n",i);}
             startInd = i+9;
             searchingState = 1;
             i = i + 8;
         }else if(fileContent[i] == '=' && fileContent[i+1] != ' '){
             if(searchingState){
-                if(testDisplay){printf("Ending =excluded : %d\n",i);}
                 endInd = i;
             }
             searchingState = 0;
@@ -2078,8 +2048,6 @@ char** getConfExcluded(char* fileContent){
         }
     }
 
-    if(testDisplay){printf("\n\nNb ExcludedFile spotted : %d\n",nbFiles);}
-
     excludedFiles = malloc(sizeof(char*)*(nbFiles+1));
     for(i=0;i<nbFiles+1;i++){
         excludedFiles[i] = malloc(sizeof(char)*256);
@@ -2091,15 +2059,12 @@ char** getConfExcluded(char* fileContent){
             i = i+2;
             x = 0;
 
-            if(testDisplay){printf("\n\nExcludedFile starting line\n");}
-
             // On isole le nom de la règle
             while(fileContent[i+x] != '\n'){
                 excludedFiles[j][x] = fileContent[i+x];
                 x++;
             }
             excludedFiles[j][x] = '\0';
-            if(testDisplay){printf("ExcludedFile : %s spotted\n",excludedFiles[j]);}
 
             i = i + x;
             j++;
@@ -2269,7 +2234,6 @@ int isRecursive(char* fileContent){
 
     for(i=0;i<lengthContent;i++){
         if(fileContent[i] == '=' && fileContent[i+1] == 'r' && fileContent[i+2] == 'e' && fileContent[i+3] == 'c' && fileContent[i+4] == 'u' && fileContent[i+5] == 'r' && fileContent[i+6] == 's' && fileContent[i+7] == 'i' && fileContent[i+8] == 'v' && fileContent[i+9] == 'e'){
-            if(testDisplay){printf("=recursive spotted : %d\n",i);}
             searchingState = 1;
             i = i + 9;
         }

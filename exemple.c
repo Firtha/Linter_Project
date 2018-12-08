@@ -30,7 +30,6 @@ int main(int argc, char** argv){
             int testingDeclar;
             int moreTesting;
             char moreWord;
-            char moreWord;
         }
         printf("Spacing test"); 
     }
