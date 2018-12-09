@@ -1,8 +1,8 @@
-#include <stdio.h>          //! Projet Linter - Langage C
-#include <stdlib.h>         //!     Etudiants :
-#include <dirent.h>         //!         Svensson Jeremy
-#include <string.h>         //!         Remy
-                            //!         Michael
+#include <stdio.h>              //! Projet Linter - Langage C
+#include <stdlib.h>             //!     Etudiants :
+#include <dirent.h>             //!         Svensson Jeremy
+#include <string.h>             //!         Remy
+                                //!         Michael
 
 typedef struct lineLevels lineLevels;
 struct lineLevels{
@@ -29,6 +29,8 @@ int testDisplay = 0;
 // Recuperation contenu d'un fichier
 char* getFileContent(char* path);
 
+//! --------------------------
+
 // Récupération des valeurs des règles dans les fichiers de configuration
 int* getConfRules(char* fileContent);
 int* agregateRulesValues(int nbExtend, char** fileNames);
@@ -50,6 +52,9 @@ char** agregateConfExcluded(int nbExtend, char** fileNames, int nbFilesExcluded)
 // Récupération de la valeur du critère récursif dans les fichiers de configuration
 int isRecursive(char* fileContent);
 int agregateIsRecursive(int nbExtend, char** fileNames);
+
+//! --------------------------
+
 void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excludedFiles, int typeExec, int* rulesValues);
 
 // Fonctions relatives au parsing d'un fichier de code source
@@ -193,6 +198,8 @@ int* getVarsUsedButUndeclared(){
     //! Pour chaque variable trouvée : vérifier avec toutes les variables de portées accessibles
     //!  - Globales (situées au dessus)
     //!  - De la structure courante et des parentes
+
+    //! Il faut trouver des mots sans parenthèses dérrière (fonction ou condition)
 
     //return tabOfLines;
     return 0;
@@ -1755,6 +1762,288 @@ char* getFileContent(char* path){
     return fileContent;
 }
 
+
+
+void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excludedFiles, int typeExec, int* rulesValues){
+    DIR * rep = opendir(path);
+    int lengthName;
+    int i;
+
+    if (rep != NULL)
+    {
+        struct dirent * ent;
+
+        while ((ent = readdir(rep)) != NULL)
+        {
+            if(strcmp(ent->d_name,".") != 0 && strcmp(ent->d_name,"..") != 0){
+                lengthName = strlen(ent->d_name);
+
+                int isFile = 0;
+                for(i=0;i<lengthName;i++){
+                    if(ent->d_name[i] == '.'){
+                        isFile++;
+                    }
+                }
+
+                int iniPos = 0;
+                char tellFolder[256] = "Src";
+                if(strcmp(path,".") == 0){
+                    iniPos = 1;
+                }else{
+                    strcpy(tellFolder,path);
+                }
+                if(isFile){
+                    int isExcluded = 0;
+                    for(i=0;i<nbFilesExcluded;i++){
+                        if(strcmp(ent->d_name, excludedFiles[i]) == 0){
+                            isExcluded++;
+                        }
+                    }
+
+                    int lengthFileName = strlen(ent->d_name);
+                    int isCFile = 0;
+                    if(ent->d_name[lengthFileName-2] == '.' && ent->d_name[lengthFileName-1] == 'c'){
+                        isCFile++;
+                    }
+
+                    if(isCFile > 0){
+                        if(isExcluded > 0){
+                            if(typeExec == 0){
+                                if(strcmp(tellFolder,"Src") != 0){
+                                    printf("%s/%s - EXCLUDED\n", tellFolder, ent->d_name);
+                                }else{
+                                    printf("%s - EXCLUDED\n", ent->d_name);
+                                }
+                            }
+                        }else{
+                            if(typeExec == 0){
+                                if(strcmp(tellFolder,"Src") != 0){
+                                    printf("%s/%s - NOT EXCLUDED\n", tellFolder, ent->d_name);
+                                }else{
+                                    printf("%s - NOT EXCLUDED\n", ent->d_name);
+                                }
+                            }else{
+                                char tmpFilePath[150] = "";
+                                if(strcmp(tellFolder,"Src") != 0){
+                                    strcat(tmpFilePath,tellFolder);
+                                    strcat(tmpFilePath,"/");
+                                }
+                                strcat(tmpFilePath,ent->d_name);
+                                system("cls");
+                                printf("Linter in progress\nFile %s, push any key to continue.\n",tmpFilePath);
+                                system("pause");
+                                system("cls");
+                                verifSourceCode(tmpFilePath, rulesValues);
+                            }
+                        }
+                    }
+                }else if(searchType){
+                    if(iniPos){
+                        dispDirContent(ent->d_name, 1, nbFilesExcluded, excludedFiles, typeExec, rulesValues);
+                    }else{
+                        char newPath[256] = "";
+                        strcpy(newPath, path);
+                        strcat(newPath, "/");
+                        strcat(newPath, ent->d_name);
+
+                        dispDirContent(newPath, 1, nbFilesExcluded, excludedFiles, typeExec, rulesValues);
+                    }
+                }
+            }
+        }
+
+        closedir(rep);
+    }
+}
+
+// Renvoi 1 si le char est un chiffre ou une lettre (maj et min)
+int isText(char c){
+    if((c < 123 && c > 96) || (c < 91 && c > 64) || (c < 58 && c > 47)){
+        return 1;
+    }else{
+        return 0;
+    }
+}
+
+int isExistingFile(char* path){
+    FILE *config = fopen(path,"r");
+
+    if(config == NULL){
+        return -1;
+    }else{
+        fseek(config, 0, SEEK_END);
+        int lengthFile = ftell(config);
+        fseek(config, 0, SEEK_SET);
+
+        if(lengthFile < 20){
+            return 0;
+        }
+        fclose(config);
+    }
+
+    return 1;
+}
+
+int dispErrMessg(char* fileName, int typeOf, int dispChx){
+    int stateExist;
+
+    stateExist = isExistingFile(fileName);
+
+    if(stateExist < 1){
+        if(dispChx){
+            system("cls");
+            printf("                    ****Linter Project****\n\n");
+        }
+        if(stateExist == 0){
+            if(typeOf && dispChx){
+                printf("-------------------------------\nWARNING MESSAGE : CONF FILE %s IS EMPTY.\n-------------------------------\n\n\n",fileName);
+            }else if(dispChx){
+                printf("-------------------------------\nFATAL ERROR : MAIN CONF FILE %s IS EMPTY.\n-------------------------------\n\n\n",fileName);
+            }
+        }else{
+            if(typeOf && dispChx){
+                printf("-------------------------------\nWARNING MESSAGE : CONF FILE %s DOESNT EXIST.\n-------------------------------\n\n\n",fileName);
+            }else if(dispChx){
+                printf("-------------------------------\nFATAL ERROR : MAIN CONF FILE %s DOESNT EXIST.\n-------------------------------\n\n\n",fileName);
+            }
+        }
+        if(dispChx){
+            system("pause");
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
+int isRecursive(char* fileContent){
+    int lengthContent = strlen(fileContent);
+    int i;
+    int searchingState = 0;
+
+    for(i=0;i<lengthContent;i++){
+        if(fileContent[i] == '=' && fileContent[i+1] == 'r' && fileContent[i+2] == 'e' && fileContent[i+3] == 'c' && fileContent[i+4] == 'u' && fileContent[i+5] == 'r' && fileContent[i+6] == 's' && fileContent[i+7] == 'i' && fileContent[i+8] == 'v' && fileContent[i+9] == 'e'){
+            searchingState = 1;
+            i = i + 9;
+        }
+
+        if(searchingState){
+            if(fileContent[i] == 't' && fileContent[i+1] == 'r' && fileContent[i+2] == 'u' && fileContent[i+3] == 'e'){
+                return 1;
+            }else if(fileContent[i] == 'f' && fileContent[i+1] == 'a' && fileContent[i+2] == 'l' && fileContent[i+3] == 's' && fileContent[i+4] == 'e'){
+                return 0;
+            }
+        }
+    }
+
+    return -1;
+}
+
+int agregateIsRecursive(int nbExtend, char** fileNames){
+    char* fileContent;
+    char* tmpName;
+
+    int i;
+    int recursiveState = 0;
+    int tmpState;
+
+    for(i=nbExtend-1;i>=0;i--){
+        tmpName = malloc(sizeof(char) * 256);
+        strcpy(tmpName, "conf/");
+        strcat(tmpName, fileNames[i]);
+
+        fileContent = getFileContent(tmpName);
+
+        tmpState = isRecursive(fileContent);
+        if(tmpState > -1){
+            recursiveState = tmpState;
+        }
+
+        free(tmpName);
+        free(fileContent);
+    }
+
+    fileContent = getFileContent("conf/main.lconf");
+
+    tmpState = isRecursive(fileContent);
+    if(tmpState > -1){
+        recursiveState = tmpState;
+    }
+
+    free(fileContent);
+
+    return recursiveState;
+}
+
+char** getAllExtendedFiles(char* currFileName, char* fileContent, int nbExtends){
+    char** confExtends;
+    char* extendContent;
+    int i;
+
+    char** allExtendedFiles;
+
+    allExtendedFiles = malloc(sizeof(char*) * (nbExtends+1));
+    for(i=0;i<nbExtends;i++){
+        allExtendedFiles[i] = malloc(sizeof(char) * 128);
+    }
+
+    strcpy(allExtendedFiles[0], currFileName);
+
+    confExtends = getConfExtends(fileContent);
+
+    for(i=1;i<nbExtends;i++){
+        char tmpName[256] = "conf/";
+
+        if(i > 1){
+            strcat(tmpName, confExtends[0]);
+            free(confExtends);
+            extendContent = getFileContent(tmpName);
+
+            confExtends = getConfExtends(extendContent);
+            free(extendContent);
+        }
+        strcpy(allExtendedFiles[i],confExtends[0]);
+    }
+    free(confExtends);
+
+    return allExtendedFiles;
+}
+
+// Démarre a 1 car appelé par un fichier en extend et non par le main.lconf
+int getNbExtendLayer(char* fileContent){
+    char** confExtends;
+    char* extendContent;
+    int nbFileExtend;
+    int nbLayers = 1;
+
+
+    confExtends = getConfExtends(fileContent);
+    nbFileExtend = getNbFilesExtended(fileContent);
+
+    while(nbFileExtend > 0){
+        char tmpName[256] = "conf/";
+        int fileState;
+
+        strcat(tmpName, confExtends[0]);
+        fileState = dispErrMessg(tmpName, 1, 0);
+        if(fileState == 1){
+            return nbLayers;
+        }else{
+            free(confExtends);
+            extendContent = getFileContent(tmpName);
+
+            confExtends = getConfExtends(extendContent);
+            nbFileExtend = getNbFilesExtended(extendContent);
+            free(extendContent);
+
+            nbLayers++;
+        }
+    }
+    free(confExtends);
+
+    return nbLayers;
+}
+
 char** getConfExtends(char* fileContent){
     char** extendsFile = NULL;
 
@@ -2132,284 +2421,4 @@ char** agregateConfExcluded(int nbExtend, char** fileNames, int nbFilesExcluded)
     free(tmpListFiles);
 
     return listOfFiles;
-}
-
-void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excludedFiles, int typeExec, int* rulesValues){
-    DIR * rep = opendir(path);
-    int lengthName;
-    int i;
-
-    if (rep != NULL)
-    {
-        struct dirent * ent;
-
-        while ((ent = readdir(rep)) != NULL)
-        {
-            if(strcmp(ent->d_name,".") != 0 && strcmp(ent->d_name,"..") != 0){
-                lengthName = strlen(ent->d_name);
-
-                int isFile = 0;
-                for(i=0;i<lengthName;i++){
-                    if(ent->d_name[i] == '.'){
-                        isFile++;
-                    }
-                }
-
-                int iniPos = 0;
-                char tellFolder[256] = "Src";
-                if(strcmp(path,".") == 0){
-                    iniPos = 1;
-                }else{
-                    strcpy(tellFolder,path);
-                }
-                if(isFile){
-                    int isExcluded = 0;
-                    for(i=0;i<nbFilesExcluded;i++){
-                        if(strcmp(ent->d_name, excludedFiles[i]) == 0){
-                            isExcluded++;
-                        }
-                    }
-
-                    int lengthFileName = strlen(ent->d_name);
-                    int isCFile = 0;
-                    if(ent->d_name[lengthFileName-2] == '.' && ent->d_name[lengthFileName-1] == 'c'){
-                        isCFile++;
-                    }
-
-                    if(isCFile > 0){
-                        if(isExcluded > 0){
-                            if(typeExec == 0){
-                                if(strcmp(tellFolder,"Src") != 0){
-                                    printf("%s/%s - EXCLUDED\n", tellFolder, ent->d_name);
-                                }else{
-                                    printf("%s - EXCLUDED\n", ent->d_name);
-                                }
-                            }
-                        }else{
-                            if(typeExec == 0){
-                                if(strcmp(tellFolder,"Src") != 0){
-                                    printf("%s/%s - NOT EXCLUDED\n", tellFolder, ent->d_name);
-                                }else{
-                                    printf("%s - NOT EXCLUDED\n", ent->d_name);
-                                }
-                            }else{
-                                char tmpFilePath[150] = "";
-                                if(strcmp(tellFolder,"Src") != 0){
-                                    strcat(tmpFilePath,tellFolder);
-                                    strcat(tmpFilePath,"/");
-                                }
-                                strcat(tmpFilePath,ent->d_name);
-                                system("cls");
-                                printf("Linter in progress\nFile %s, push any key to continue.\n",tmpFilePath);
-                                system("pause");
-                                system("cls");
-                                verifSourceCode(tmpFilePath, rulesValues);
-                            }
-                        }
-                    }
-                }else if(searchType){
-                    if(iniPos){
-                        dispDirContent(ent->d_name, 1, nbFilesExcluded, excludedFiles, typeExec, rulesValues);
-                    }else{
-                        char newPath[256] = "";
-                        strcpy(newPath, path);
-                        strcat(newPath, "/");
-                        strcat(newPath, ent->d_name);
-
-                        dispDirContent(newPath, 1, nbFilesExcluded, excludedFiles, typeExec, rulesValues);
-                    }
-                }
-            }
-        }
-
-        closedir(rep);
-    }
-}
-
-// Renvoi 1 si le char est un chiffre ou une lettre (maj et min)
-int isText(char c){
-    if((c < 123 && c > 96) || (c < 91 && c > 64) || (c < 58 && c > 47)){
-        return 1;
-    }else{
-        return 0;
-    }
-}
-
-int isRecursive(char* fileContent){
-    int lengthContent = strlen(fileContent);
-    int i;
-    int searchingState = 0;
-
-    for(i=0;i<lengthContent;i++){
-        if(fileContent[i] == '=' && fileContent[i+1] == 'r' && fileContent[i+2] == 'e' && fileContent[i+3] == 'c' && fileContent[i+4] == 'u' && fileContent[i+5] == 'r' && fileContent[i+6] == 's' && fileContent[i+7] == 'i' && fileContent[i+8] == 'v' && fileContent[i+9] == 'e'){
-            searchingState = 1;
-            i = i + 9;
-        }
-
-        if(searchingState){
-            if(fileContent[i] == 't' && fileContent[i+1] == 'r' && fileContent[i+2] == 'u' && fileContent[i+3] == 'e'){
-                return 1;
-            }else if(fileContent[i] == 'f' && fileContent[i+1] == 'a' && fileContent[i+2] == 'l' && fileContent[i+3] == 's' && fileContent[i+4] == 'e'){
-                return 0;
-            }
-        }
-    }
-
-    return -1;
-}
-
-int agregateIsRecursive(int nbExtend, char** fileNames){
-    char* fileContent;
-    char* tmpName;
-
-    int i;
-    int recursiveState = 0;
-    int tmpState;
-
-    for(i=nbExtend-1;i>=0;i--){
-        tmpName = malloc(sizeof(char) * 256);
-        strcpy(tmpName, "conf/");
-        strcat(tmpName, fileNames[i]);
-
-        fileContent = getFileContent(tmpName);
-
-        tmpState = isRecursive(fileContent);
-        if(tmpState > -1){
-            recursiveState = tmpState;
-        }
-
-        free(tmpName);
-        free(fileContent);
-    }
-
-    fileContent = getFileContent("conf/main.lconf");
-
-    tmpState = isRecursive(fileContent);
-    if(tmpState > -1){
-        recursiveState = tmpState;
-    }
-
-    free(fileContent);
-
-    return recursiveState;
-}
-
-int isExistingFile(char* path){
-    FILE *config = fopen(path,"r");
-
-    if(config == NULL){
-        return -1;
-    }else{
-        fseek(config, 0, SEEK_END);
-        int lengthFile = ftell(config);
-        fseek(config, 0, SEEK_SET);
-
-        if(lengthFile < 20){
-            return 0;
-        }
-        fclose(config);
-    }
-
-    return 1;
-}
-
-int dispErrMessg(char* fileName, int typeOf, int dispChx){
-    int stateExist;
-
-    stateExist = isExistingFile(fileName);
-
-    if(stateExist < 1){
-        if(dispChx){
-            system("cls");
-            printf("                    ****Linter Project****\n\n");
-        }
-        if(stateExist == 0){
-            if(typeOf && dispChx){
-                printf("-------------------------------\nWARNING MESSAGE : CONF FILE %s IS EMPTY.\n-------------------------------\n\n\n",fileName);
-            }else if(dispChx){
-                printf("-------------------------------\nFATAL ERROR : MAIN CONF FILE %s IS EMPTY.\n-------------------------------\n\n\n",fileName);
-            }
-        }else{
-            if(typeOf && dispChx){
-                printf("-------------------------------\nWARNING MESSAGE : CONF FILE %s DOESNT EXIST.\n-------------------------------\n\n\n",fileName);
-            }else if(dispChx){
-                printf("-------------------------------\nFATAL ERROR : MAIN CONF FILE %s DOESNT EXIST.\n-------------------------------\n\n\n",fileName);
-            }
-        }
-        if(dispChx){
-            system("pause");
-        }
-        return 1;
-    }
-
-    return 0;
-}
-
-char** getAllExtendedFiles(char* currFileName, char* fileContent, int nbExtends){
-    char** confExtends;
-    char* extendContent;
-    int i;
-
-    char** allExtendedFiles;
-
-    allExtendedFiles = malloc(sizeof(char*) * (nbExtends+1));
-    for(i=0;i<nbExtends;i++){
-        allExtendedFiles[i] = malloc(sizeof(char) * 128);
-    }
-
-    strcpy(allExtendedFiles[0], currFileName);
-
-    confExtends = getConfExtends(fileContent);
-
-    for(i=1;i<nbExtends;i++){
-        char tmpName[256] = "conf/";
-
-        if(i > 1){
-            strcat(tmpName, confExtends[0]);
-            free(confExtends);
-            extendContent = getFileContent(tmpName);
-
-            confExtends = getConfExtends(extendContent);
-            free(extendContent);
-        }
-        strcpy(allExtendedFiles[i],confExtends[0]);
-    }
-    free(confExtends);
-
-    return allExtendedFiles;
-}
-
-// Démarre a 1 car appelé par un fichier en extend et non par le main.lconf
-int getNbExtendLayer(char* fileContent){
-    char** confExtends;
-    char* extendContent;
-    int nbFileExtend;
-    int nbLayers = 1;
-
-
-    confExtends = getConfExtends(fileContent);
-    nbFileExtend = getNbFilesExtended(fileContent);
-
-    while(nbFileExtend > 0){
-        char tmpName[256] = "conf/";
-        int fileState;
-
-        strcat(tmpName, confExtends[0]);
-        fileState = dispErrMessg(tmpName, 1, 0);
-        if(fileState == 1){
-            return nbLayers;
-        }else{
-            free(confExtends);
-            extendContent = getFileContent(tmpName);
-
-            confExtends = getConfExtends(extendContent);
-            nbFileExtend = getNbFilesExtended(extendContent);
-            free(extendContent);
-
-            nbLayers++;
-        }
-    }
-    free(confExtends);
-
-    return nbLayers;
 }
