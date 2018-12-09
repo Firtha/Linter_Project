@@ -29,8 +29,6 @@ int testDisplay = 0;
 // Recuperation contenu d'un fichier
 char* getFileContent(char* path);
 
-//! --------------------------
-
 // Récupération des valeurs des règles dans les fichiers de configuration
 int* getConfRules(char* fileContent);
 int* agregateRulesValues(int nbExtend, char** fileNames);
@@ -52,8 +50,6 @@ char** agregateConfExcluded(int nbExtend, char** fileNames, int nbFilesExcluded)
 // Récupération de la valeur du critère récursif dans les fichiers de configuration
 int isRecursive(char* fileContent);
 int agregateIsRecursive(int nbExtend, char** fileNames);
-
-//! --------------------------
 
 void dispDirContent(char* path, int searchType, int nbFilesExcluded, char** excludedFiles, int typeExec, int* rulesValues);
 
@@ -513,17 +509,19 @@ void verifSourceCode(char* path, int* rulesValues){
             }
         }
 
-        // Regle n°9 concernant les variables déclarées mais inutilisées
-        if(rulesValues[9] > 0){
-            if(unusedVars[i] > 0 && i < nbLines){
-                printf("!! Warning Rule 9 : Unused var spotted (%d vars unused on line)\n\n",unusedVars[i]);
-            }
-        }
-
+        int isAlreadyDeclared = 0;
         // Regle a définir
         if(rulesValues[16] > 0){
             if(tabOfLinesForDoubleDeclar[i] > 0 && i < nbLines){
                 printf("!! Warning Bonus Rule 16 : Var already declared in scope\n");
+                isAlreadyDeclared = 1;
+            }
+        }
+
+        // Regle n°9 concernant les variables déclarées mais inutilisées
+        if(rulesValues[9] > 0 && isAlreadyDeclared == 0){
+            if(unusedVars[i] > 0 && i < nbLines){
+                printf("!! Warning Rule 9 : Unused var spotted (%d vars unused on line)\n\n",unusedVars[i]);
             }
         }
     }
