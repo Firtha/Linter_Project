@@ -417,6 +417,121 @@ int main(int argc, char **argv)
     return 0;
 }
 
+//! LA FONCTION DEVRA RECEVOIR TOUTES LES INFOS DE CONFIG EN PARAMETRE AFIN D'EFFECTUER TOUTES LES VERIFS ELLE MEME
+void verifSourceCode(char* path, int* rulesValues){
+    char* fileContent;
+
+    printf("                    ****Linter Project****\n\n\n");
+    printf("Verification du fichier %s....\n\n", path);
+
+    fileContent = getFileContent(path);
+
+    int nbLines = 0;
+    int lengthFile;
+    int i;
+
+    lengthFile = strlen(fileContent);
+
+    int nbPrimaryLevels = getNbPrimaryLevels(fileContent);
+    lineLevels* primaryStructs = getAllLevels(fileContent, nbPrimaryLevels);
+
+    int* nbGlobalVars = getNbGlobalVars(fileContent, primaryStructs, nbPrimaryLevels);
+    char*** globalVars = getGlobalVars(fileContent, primaryStructs, nbPrimaryLevels, nbGlobalVars);
+
+    for(i=0;i<nbPrimaryLevels;i++){
+        primaryStructs[i] = assignGlobalTabsInSons(primaryStructs[i], globalVars, nbGlobalVars);
+    }
+
+    for(i=0;i<lengthFile;i++){
+        if(fileContent[i] == '\n'){
+            nbLines++;
+        }
+    }
+
+    //! Regle Bonus n°17
+    int* tabOfLinesForDoubleDeclar = getLinesOfAlreadyDeclaredVars(fileContent, nbLines, primaryStructs, nbPrimaryLevels);
+
+    int* multiDeclarLines = getMultiDeclarOnLine(fileContent, primaryStructs, nbPrimaryLevels, nbLines);
+
+    int* unusedVars = getVarsDeclaredButUnused(fileContent, nbLines, primaryStructs, nbPrimaryLevels);
+
+    // Regle n°6 de nombre de ligne maximum pour un fichier
+    if(rulesValues[6] > 0){
+        if(nbLines > rulesValues[6]){
+            printf("\n!! Warning Rule 6 : Too many lines for file (%d > %d)\n\n", nbLines, rulesValues[6]);
+        }
+    }
+
+    printf("Le fichier %s contient %d lignes\n\n", path, nbLines);
+
+    //! TRAITEMENT DU FICHIER LIGNE PAR LIGNE POUR LA PLUPART DES REGLES
+
+    int x;
+    int nbChar = 0;
+    char line[512];
+    for(i=0;i<nbLines+1;i++){
+        x = 0;
+        printf("%d ",i+1);
+        if(i+1 < 100){
+            printf(" ");
+        }
+        if(i+1 < 10){
+            printf(" ");
+        }
+
+
+        while(fileContent[nbChar] != '\n' && nbChar < lengthFile){
+
+            //! TRAITEMENT DU CONTENU DE LA LIGNE
+            line[x] = fileContent[nbChar];
+
+            x++;
+            nbChar++;
+        }
+        line[x] = '\0';
+        nbChar++;
+        printf(": %s\n",line);
+
+        // Regle n°5 de nombre de caracteres maximum pour une ligne
+        if(rulesValues[5] > 0){
+            if(x > rulesValues[5] && i < nbLines){
+                printf("!! Warning Rule 5 : Too many chars on line  (%d > %d)\n\n", x, rulesValues[5]);
+            }
+        }
+
+        // Regle n°8 de non declaration multiple de variable sur une ligne
+        if(rulesValues[8] > 0){
+            if(multiDeclarLines[i] > 1 && i < nbLines){
+                printf("!! Warning Rule 8 : Multi Declaration spotted (%d declaration)\n\n",multiDeclarLines[i]);
+            }
+        }
+
+        // Regle n°9 concernant les variables déclarées mais inutilisées
+        if(rulesValues[9] > 0){
+            if(unusedVars[i] > 0 && i < nbLines){
+                printf("!! Warning Rule 9 : Unused var spotted (%d vars unused on line)\n\n",unusedVars[i]);
+            }
+        }
+
+        // Regle a définir
+        if(rulesValues[16] > 0){
+            if(tabOfLinesForDoubleDeclar[i] > 0 && i < nbLines){
+                printf("!! Warning Bonus Rule 16 : Var already declared in scope\n");
+            }
+        }
+    }
+
+
+    printf("\n\n\n");
+    freeAllStructs(primaryStructs, nbPrimaryLevels);
+    free(tabOfLinesForDoubleDeclar);
+    free(unusedVars);
+    free(multiDeclarLines);
+    free(fileContent);
+
+    system("pause");
+}
+
 //!  - VARIABLE DECLAREE MAIS PAS UTILISEE
 int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* primaryStructs, int nbPrimaries, int isGlobal, int levelNumber, int identifier){
     //! Informations de la variable a traiter
@@ -577,8 +692,6 @@ int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* 
 
     return 1;
 }
-
-
 
 int* getVarsDeclaredButUnused(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries){
     int* tabOfLines = malloc(sizeof(int)*nbLines);
@@ -922,121 +1035,6 @@ lineLevels assignGlobalTabsInSons(lineLevels currStruct, char*** globalVars, int
     }
 
     return currStruct;
-}
-
-//! LA FONCTION DEVRA RECEVOIR TOUTES LES INFOS DE CONFIG EN PARAMETRE AFIN D'EFFECTUER TOUTES LES VERIFS ELLE MEME
-void verifSourceCode(char* path, int* rulesValues){
-    char* fileContent;
-
-    printf("                    ****Linter Project****\n\n\n");
-    printf("Verification du fichier %s....\n\n", path);
-
-    fileContent = getFileContent(path);
-
-    int nbLines = 0;
-    int lengthFile;
-    int i;
-
-    lengthFile = strlen(fileContent);
-
-    int nbPrimaryLevels = getNbPrimaryLevels(fileContent);
-    lineLevels* primaryStructs = getAllLevels(fileContent, nbPrimaryLevels);
-
-    int* nbGlobalVars = getNbGlobalVars(fileContent, primaryStructs, nbPrimaryLevels);
-    char*** globalVars = getGlobalVars(fileContent, primaryStructs, nbPrimaryLevels, nbGlobalVars);
-
-    for(i=0;i<nbPrimaryLevels;i++){
-        primaryStructs[i] = assignGlobalTabsInSons(primaryStructs[i], globalVars, nbGlobalVars);
-    }
-
-    for(i=0;i<lengthFile;i++){
-        if(fileContent[i] == '\n'){
-            nbLines++;
-        }
-    }
-
-    //! Regle Bonus n°17
-    int* tabOfLinesForDoubleDeclar = getLinesOfAlreadyDeclaredVars(fileContent, nbLines, primaryStructs, nbPrimaryLevels);
-
-    int* multiDeclarLines = getMultiDeclarOnLine(fileContent, primaryStructs, nbPrimaryLevels, nbLines);
-
-    int* unusedVars = getVarsDeclaredButUnused(fileContent, nbLines, primaryStructs, nbPrimaryLevels);
-
-    // Regle n°6 de nombre de ligne maximum pour un fichier
-    if(rulesValues[6] > 0){
-        if(nbLines > rulesValues[6]){
-            printf("\n!! Warning Rule 6 : Too many lines for file (%d > %d)\n\n", nbLines, rulesValues[6]);
-        }
-    }
-
-    printf("Le fichier %s contient %d lignes\n\n", path, nbLines);
-
-    //! TRAITEMENT DU FICHIER LIGNE PAR LIGNE POUR LA PLUPART DES REGLES
-
-    int x;
-    int nbChar = 0;
-    char line[512];
-    for(i=0;i<nbLines+1;i++){
-        x = 0;
-        printf("%d ",i+1);
-        if(i+1 < 100){
-            printf(" ");
-        }
-        if(i+1 < 10){
-            printf(" ");
-        }
-
-
-        while(fileContent[nbChar] != '\n' && nbChar < lengthFile){
-
-            //! TRAITEMENT DU CONTENU DE LA LIGNE
-            line[x] = fileContent[nbChar];
-
-            x++;
-            nbChar++;
-        }
-        line[x] = '\0';
-        nbChar++;
-        printf(": %s\n",line);
-
-        // Regle n°5 de nombre de caracteres maximum pour une ligne
-        if(rulesValues[5] > 0){
-            if(x > rulesValues[5] && i < nbLines){
-                printf("!! Warning Rule 5 : Too many chars on line  (%d > %d)\n\n", x, rulesValues[5]);
-            }
-        }
-
-        // Regle n°8 de non declaration multiple de variable sur une ligne
-        if(rulesValues[8] > 0){
-            if(multiDeclarLines[i] > 1 && i < nbLines){
-                printf("!! Warning Rule 8 : Multi Declaration spotted (%d declaration)\n\n",multiDeclarLines[i]);
-            }
-        }
-
-        // Regle n°9 concernant les variables déclarées mais inutilisées
-        if(rulesValues[9] > 0){
-            if(unusedVars[i] > 0 && i < nbLines){
-                printf("!! Warning Rule 9 : Unused var spotted (%d vars unused on line)\n\n",unusedVars[i]);
-            }
-        }
-
-        // Regle a définir
-        if(rulesValues[16] > 0){
-            if(tabOfLinesForDoubleDeclar[i] > 0 && i < nbLines){
-                printf("!! Warning Bonus Rule 16 : Var already declared in scope\n");
-            }
-        }
-    }
-
-
-    printf("\n\n\n");
-    freeAllStructs(primaryStructs, nbPrimaryLevels);
-    free(tabOfLinesForDoubleDeclar);
-    free(unusedVars);
-    free(multiDeclarLines);
-    free(fileContent);
-
-    system("pause");
 }
 
 int* getNbGlobalVars(char* fileContent, lineLevels* primaryStructs, int nbPrimaries){
