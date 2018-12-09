@@ -89,6 +89,9 @@ int lookForType(char* fileContent, int startInd);
 int* getMultiDeclarOnLine(char* fileContent, lineLevels* primaryStructs, int nbPrimaryLevels, int nbLines);
 int* structNbVarsOnLines(lineLevels currStruct, int* tabOfLines);
 
+int* getVarsDeclaredButUnused(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries);
+int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* primaryStructs, int nbPrimaries, int isGlobal, int levelNumber, int identifier);
+
 // Fonctions de reperage de deuxieme declaration d'une variable
 int* getLinesOfAlreadyDeclaredVars(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries);
 int* goToStructSonsForCheck(lineLevels* primaryStructs, int nbPrimaries, lineLevels currStruct, int* tabOfLines, int chxExec, char* fileContent);
@@ -168,195 +171,6 @@ PARTIE BONUS :
 - variable-no-double-declaration = off
 
 */
-
-//! A FAIRE :
-//!  - VARIABLE DECLAREE MAIS PAS UTILISEE
-//!     o Chercher, pour chaque variable déclarée de chaque niveau, une utilisation (présence du nom de variable de facon distincte)
-//!     o >> Chercher dans le niveau courant et les niveaux fils <<                                                 isGlobal : 1 ou 0
-int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* primaryStructs, int nbPrimaries, int isGlobal, int levelNumber, int identifier){
-    //! Informations de la variable a traiter
-    int lineVar = getLineOfVar(nameVar);
-    char* nameOfVar = extractNameFromNameVar(nameVar);
-
-    int currLine = 0;
-
-    int i;
-    int x;
-    int nbErr;
-    int isNotVar = 0;
-    int simpleQuote;
-    int doubleQuote;
-    int commentary;
-    int bigComment = 0;
-    int lineStart;
-    int isDeclar;
-
-    //! AMELIORATION A FAIRE :
-    //!  ==> NE PAS TRAITER LES LIGNES RELATIVES A DES DECLARATIONS DE VARIABLES !!!!!!
-
-    //! Si la variable est globale, on traite toutes les lignes situées en dessous, peu importe dans quelle structure elles se trouvent
-    if(isGlobal == 1){
-        int length = strlen(fileContent);
-        for(i=0;i<length;i++){
-            if(fileContent[i] == '\n'){currLine++;commentary = 0;i++;lineStart = i;isDeclar = lookForType(fileContent, lineStart);}
-            if(currLine > lineVar){
-                x = 0;
-                nbErr = 0;
-                if(fileContent[i] == '/' && fileContent[i+1] == '*'){
-                    bigComment = 1;
-                }
-                if(fileContent[i] == '*' && fileContent[i+1] == '/'){
-                    bigComment = 0;
-                }
-                if(fileContent[i] == '/' && fileContent[i+1] == '/'){
-                    commentary = 1;
-                }
-                if(fileContent[i] == 34 && doubleQuote == 0){
-                    doubleQuote = 1;
-                }else if(fileContent[i] == 34 && doubleQuote == 1){
-                    doubleQuote = 0;
-                }
-                if(fileContent[i] == 39 && doubleQuote == 0){
-                    simpleQuote = 1;
-                }else if(fileContent[i] == 39 && doubleQuote == 1){
-                    simpleQuote = 0;
-                }
-                if(fileContent[i] == '{' || fileContent[i] == '(' || fileContent[i] == '['){
-                    isNotVar++;
-                }
-                if(fileContent[i] == '}' || fileContent[i] == ')' || fileContent[i] == ']'){
-                    isNotVar--;
-                }
-                // Si toutes les conditions sont réunies pour que le début de mot soit éligible en tant que var a part entière
-                if(fileContent[i] == nameOfVar[x] && (fileContent[i-1] == ' ' || fileContent[i-1] == '\n' || fileContent[i-1] == '\t') && isNotVar == 0 && simpleQuote == 0 && doubleQuote == 0 && commentary == 0 && bigComment == 0 && isDeclar == 0){
-                    int lengthVar = strlen(nameOfVar);
-                    while(x < lengthVar && (fileContent[i+x] != ';' || fileContent[i+x+1] != '\n')){
-                        if(fileContent[i+x] != nameOfVar[x]){
-                            nbErr++;
-                        }
-                        x++;
-                    }
-                    i = i + x;
-                    //! Si la variable ne se termine pas par un char non textuel (opérateur, espace, virgule, etc...), le nom n'est pas terminé
-                    if(isText(fileContent[i])){
-                        nbErr++;
-                    }
-                    if(nbErr == 0){
-                        //! Variable repérée
-                        printf("Var %s Use Spotted on line %d !\n",nameOfVar, currLine);
-                        return 0;
-                    }
-                }
-            }
-        }
-    }else{
-        //! SI LA VARIABLE APPARTIENT A UNE STRUCTURE
-        //!  - REPERAGE DE LA STRUCTURE CIBLE (via levelNumber et identifier)
-        lineLevels currStruct = getStructWithLevelAndIdentifier(levelNumber, identifier, primaryStructs, nbPrimaries);
-
-        int currLine = currStruct.startingLine;
-
-        int startIndex = currStruct.startLevel;
-        int endIndex = currStruct.endLevel;
-
-        //!  - RECHERCHE SUR LES STRUCTURES ACCESSIBLES
-        //!     o Structure courrante + Structure filles contenus dans la courrante
-        for(i=startIndex;i<endIndex;i++){
-            if(fileContent[i] == '\n'){
-                currLine++;
-                commentary = 0;
-                i++;
-                lineStart = i;
-                isDeclar = lookForType(fileContent, lineStart);
-            }
-            if(currLine > lineVar){
-                x = 0;
-                nbErr = 0;
-                if(fileContent[i] == '/' && fileContent[i+1] == '*'){
-                    bigComment = 1;
-                }
-                if(fileContent[i] == '*' && fileContent[i+1] == '/'){
-                    bigComment = 0;
-                }
-                if(fileContent[i] == '/' && fileContent[i+1] == '/'){
-                    commentary = 1;
-                }
-                if(fileContent[i] == 34 && doubleQuote == 0){
-                    doubleQuote = 1;
-                }else if(fileContent[i] == 34 && doubleQuote == 1){
-                    doubleQuote = 0;
-                }
-                if(fileContent[i] == 39 && doubleQuote == 0){
-                    simpleQuote = 1;
-                }else if(fileContent[i] == 39 && doubleQuote == 1){
-                    simpleQuote = 0;
-                }
-                if(fileContent[i] == '{' || fileContent[i] == '(' || fileContent[i] == '['){
-                    isNotVar++;
-                }
-                if(fileContent[i] == '}' || fileContent[i] == ')' || fileContent[i] == ']'){
-                    isNotVar--;
-                }
-                // Si toutes les conditions sont réunies pour que le début de mot soit éligible en tant que var a part entière
-                if(fileContent[i] == nameOfVar[x] && (fileContent[i-1] == ' ' || fileContent[i-1] == '\n' || fileContent[i-1] == '\t') && isNotVar == 0 && simpleQuote == 0 && doubleQuote == 0 && commentary == 0 && bigComment == 0 && isDeclar == 0){
-                    int lengthVar = strlen(nameOfVar);
-                    while(x < lengthVar && (fileContent[i+x] != ';' || fileContent[i+x+1] != '\n')){
-                        if(fileContent[i+x] != nameOfVar[x]){
-                            nbErr++;
-                        }
-                        x++;
-                    }
-                    i = i + x;
-                    //! Si la variable ne se termine pas par un char non textuel (opérateur, espace, virgule, etc...), le nom n'est pas terminé
-                    if(isText(fileContent[i])){
-                        nbErr++;
-                    }
-                    if(nbErr == 0){
-                        //! Variable repérée
-                        printf("Var %s Spotted on line %d !\n",nameOfVar, currLine);
-                        return 0;
-                    }
-                }
-            }
-        }
-    }
-
-    return 1;
-}
-
-
-
-int* getVarsDeclaredButUnused(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries){
-    int* tabOfLines = malloc(sizeof(int)*nbLines);
-
-    int* nbGlobal = primaryStructs[0].nbGlobal;
-    char*** globalVars = primaryStructs[0].globalVars;
-
-    int i;
-    int y;
-
-    for(i=0;i<nbLines;i++){
-        tabOfLines[i] = 0;
-    }
-
-    //! Verif avec les variables globales
-    for(i=0;i<6;i++){
-        for(y=0;y<nbGlobal[i];y++){
-            int lineVar = getLineOfVar(globalVars[i][y]);
-            int stateFct = checkIfVarUsedInStructAndSons(fileContent, globalVars[i][y], primaryStructs, nbPrimaries, 1, 0, 0);
-            if(stateFct){
-                tabOfLines[lineVar]++;
-            }
-        }
-    }
-
-    //! Verif sur chaque primaires et ses filles
-    for(i=0;i<nbPrimaries;i++){
-        tabOfLines = goToStructSonsForCheck(primaryStructs, nbPrimaries, primaryStructs[i], tabOfLines, 2, fileContent);
-    }
-
-    return tabOfLines;
-}
 
 //!  - VARIABLE UTILISEE MAIS PAS DECLAREE
 //!     o Chercher, dans des affectations / opération / envoi de paramètres, des noms de variable distincts et comparer aux vars
@@ -601,6 +415,201 @@ int main(int argc, char **argv)
     }
 
     return 0;
+}
+
+//!  - VARIABLE DECLAREE MAIS PAS UTILISEE
+int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* primaryStructs, int nbPrimaries, int isGlobal, int levelNumber, int identifier){
+    //! Informations de la variable a traiter
+    int lineVar = getLineOfVar(nameVar);
+    char* nameOfVar = extractNameFromNameVar(nameVar);
+
+    int currLine = 0;
+
+    int i;
+    int x;
+    int nbErr;
+    int isNotVar = 0;
+    int simpleQuote = 0;
+    int doubleQuote = 0;
+    int commentary;
+    int bigComment = 0;
+    int lineStart;
+    int isDeclar;
+
+    //! Si la variable est globale, on traite toutes les lignes situées en dessous, peu importe dans quelle structure elles se trouvent
+    if(isGlobal == 1){
+        int length = strlen(fileContent);
+        for(i=0;i<length;i++){
+            if(fileContent[i] == '\n'){
+                currLine++;
+                commentary = 0;
+                lineStart = i + 1;
+                isDeclar = lookForType(fileContent, lineStart);
+            }
+            if(fileContent[i] == '='){
+                isDeclar = lookForType(fileContent, i);
+            }
+            if(currLine > lineVar){
+                x = 0;
+                nbErr = 0;
+                if(fileContent[i] == '/' && fileContent[i+1] == '*'){
+                    bigComment = 1;
+                }
+                if(fileContent[i] == '*' && fileContent[i+1] == '/'){
+                    bigComment = 0;
+                }
+                if(fileContent[i] == '/' && fileContent[i+1] == '/'){
+                    commentary = 1;
+                }
+                if(fileContent[i] == 34 && doubleQuote == 0){
+                    doubleQuote = 1;
+                }else if(fileContent[i] == 34 && doubleQuote == 1){
+                    doubleQuote = 0;
+                }
+                if(fileContent[i] == 39 && simpleQuote == 0){
+                    simpleQuote = 1;
+                }else if(fileContent[i] == 39 && simpleQuote == 1){
+                    simpleQuote = 0;
+                }
+                if(fileContent[i] == '['){
+                    isNotVar++;
+                }
+                if(fileContent[i] == ']'){
+                    isNotVar--;
+                }
+                // Si toutes les conditions sont réunies pour que le début de mot soit éligible en tant que var a part entière
+                if(fileContent[i] == nameOfVar[x] && isText(fileContent[i-1]) == 0 && isNotVar == 0 && simpleQuote == 0 && doubleQuote == 0 && commentary == 0 && bigComment == 0 && isDeclar == 0){
+                    int lengthVar = strlen(nameOfVar);
+                    while(x < lengthVar && fileContent[i+x] == nameOfVar[x]){
+                        if(fileContent[i+x] != nameOfVar[x]){
+                            nbErr++;
+                        }
+                        x++;
+                    }
+                    i = i + x;
+
+                    //! Si la variable ne se termine pas par un char non textuel (opérateur, espace, virgule, etc...), le nom n'est pas terminé
+                    if(isText(fileContent[i])){
+                        nbErr++;
+                    }
+                    if(nbErr == 0){
+                        //! Variable repérée
+                        //printf("Var %s Use Spotted on line %d !\n",nameOfVar, currLine);
+                        return 0;
+                    }
+                }
+            }
+        }
+    }else{
+        //! SI LA VARIABLE APPARTIENT A UNE STRUCTURE
+        //!  - REPERAGE DE LA STRUCTURE CIBLE (via levelNumber et identifier)
+        lineLevels currStruct = getStructWithLevelAndIdentifier(levelNumber, identifier, primaryStructs, nbPrimaries);
+
+        currLine = currStruct.startingLine;
+
+        int startIndex = currStruct.startLevel;
+        int endIndex = currStruct.endLevel;
+
+        //!  - RECHERCHE SUR LES STRUCTURES ACCESSIBLES
+        //!     o Structure courrante + Structure filles contenus dans la courrante
+        for(i=startIndex;i<endIndex;i++){
+            if(fileContent[i] == '\n'){
+                currLine++;
+                commentary = 0;
+                lineStart = i + 1;
+                isDeclar = lookForType(fileContent, lineStart);
+            }
+            if(fileContent[i] == '='){
+                isDeclar = lookForType(fileContent, i);
+            }
+            if(currLine > lineVar){
+                x = 0;
+                nbErr = 0;
+                if(fileContent[i] == '/' && fileContent[i+1] == '*'){
+                    bigComment = 1;
+                }
+                if(fileContent[i] == '*' && fileContent[i+1] == '/'){
+                    bigComment = 0;
+                }
+                if(fileContent[i] == '/' && fileContent[i+1] == '/'){
+                    commentary = 1;
+                }
+                if(fileContent[i] == 34 && doubleQuote == 0){
+                    doubleQuote = 1;
+                }else if(fileContent[i] == 34 && doubleQuote == 1){
+                    doubleQuote = 0;
+                }
+                if(fileContent[i] == 39 && simpleQuote == 0){
+                    simpleQuote = 1;
+                }else if(fileContent[i] == 39 && simpleQuote == 1){
+                    simpleQuote = 0;
+                }
+                if(fileContent[i] == '['){
+                    isNotVar++;
+                }
+                if(fileContent[i] == ']'){
+                    isNotVar--;
+                }
+                // Si toutes les conditions sont réunies pour que le début de mot soit éligible en tant que var a part entière
+                if(fileContent[i] == nameOfVar[x] && isText(fileContent[i-1]) == 0 && isNotVar == 0 && simpleQuote == 0 && doubleQuote == 0 && commentary == 0 && bigComment == 0 && isDeclar == 0){
+                    int lengthVar = strlen(nameOfVar);
+                    while(x < lengthVar && fileContent[i+x] == nameOfVar[x]){
+                        if(fileContent[i+x] != nameOfVar[x]){
+                            nbErr++;
+                        }
+                        x++;
+                    }
+                    i = i + x;
+
+                    //! Si la variable ne se termine pas par un char non textuel (opérateur, espace, virgule, etc...), le nom n'est pas terminé
+                    if(isText(fileContent[i])){
+                        nbErr++;
+                    }
+                    if(nbErr == 0){
+                        //! Variable repérée
+                        //printf("Var %s Spotted on line %d !\n",nameOfVar, currLine);
+                        return 0;
+                    }
+                }
+            }
+        }
+    }
+
+    return 1;
+}
+
+
+
+int* getVarsDeclaredButUnused(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries){
+    int* tabOfLines = malloc(sizeof(int)*nbLines);
+
+    int* nbGlobal = primaryStructs[0].nbGlobal;
+    char*** globalVars = primaryStructs[0].globalVars;
+
+    int i;
+    int y;
+
+    for(i=0;i<nbLines;i++){
+        tabOfLines[i] = 0;
+    }
+
+    //! Verif avec les variables globales
+    for(i=0;i<6;i++){
+        for(y=0;y<nbGlobal[i];y++){
+            int lineVar = getLineOfVar(globalVars[i][y]);
+            int stateFct = checkIfVarUsedInStructAndSons(fileContent, globalVars[i][y], primaryStructs, nbPrimaries, 1, 0, 0);
+            if(stateFct){
+                tabOfLines[lineVar]++;
+            }
+        }
+    }
+
+    //! Verif sur chaque primaires et ses filles
+    for(i=0;i<nbPrimaries;i++){
+        tabOfLines = goToStructSonsForCheck(primaryStructs, nbPrimaries, primaryStructs[i], tabOfLines, 2, fileContent);
+    }
+
+    return tabOfLines;
 }
 
 int* structNbVarsOnLines(lineLevels currStruct, int* tabOfLines){
@@ -946,7 +955,7 @@ void verifSourceCode(char* path, int* rulesValues){
         }
     }
 
-    //! Ne correspond a aucune règle actuellement, a mettre en BONUS car très important
+    //! Regle Bonus n°17
     int* tabOfLinesForDoubleDeclar = getLinesOfAlreadyDeclaredVars(fileContent, nbLines, primaryStructs, nbPrimaryLevels);
 
     int* multiDeclarLines = getMultiDeclarOnLine(fileContent, primaryStructs, nbPrimaryLevels, nbLines);
@@ -1006,7 +1015,7 @@ void verifSourceCode(char* path, int* rulesValues){
 
         // Regle n°9 concernant les variables déclarées mais inutilisées
         if(rulesValues[9] > 0){
-            if(unusedVars[i] > 1 && i < nbLines){
+            if(unusedVars[i] > 0 && i < nbLines){
                 printf("!! Warning Rule 9 : Unused var spotted (%d vars unused on line)\n\n",unusedVars[i]);
             }
         }
@@ -1683,7 +1692,7 @@ int lookForType(char* fileContent, int startInd){
         x = 0;
         for(y=0;y<6;y++){
             nbErr = 0;
-            if(types[y][x] == fileContent[i] && (fileContent[i-1] == ' ' || fileContent[y-1] == '\n' || fileContent[y-1] == '\t')){
+            if(types[y][x] == fileContent[i] && (fileContent[i-1] == ' ' || fileContent[i-1] == '\n' || fileContent[i-1] == '\t')){
                 length = strlen(types[y]);
                 while(x < length && nbErr == 0){
                     if(types[y][x] != fileContent[i+x]){
@@ -1696,6 +1705,7 @@ int lookForType(char* fileContent, int startInd){
                     }
                     x++;
                 }
+                i = i + x;
                 if(nbErr == 0){
                     while(lineEnd == 0){
                         if(fileContent[i] == '\n'){

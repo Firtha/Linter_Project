@@ -7,7 +7,7 @@ int stateVar;
 
 int returnVar();
 
-int globalVar;
+globalVar = stateVar + globalNumber;
 
 int main(int argc, char** argv){
     char tab[6][15] = {"Hello","World","I","feel","really","great"}, tabBis[6] = "Hello";
@@ -32,6 +32,9 @@ int main(int argc, char** argv){
             char moreWord;
         }
         printf("Spacing test"); 
+        if(y){
+        	printf("y used !");
+        }
     }
     
     return 0;
