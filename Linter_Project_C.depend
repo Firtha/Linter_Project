@@ -33,11 +33,12 @@
 	<dirent.h>
 	<string.h>
 
-1544371160 source:c:\users\svensson jeremy\documents\github\linter_project\main.c
+1544457862 source:c:\users\svensson jeremy\documents\github\linter_project\main.c
 	<stdio.h>
 	<stdlib.h>
 	<dirent.h>
 	<string.h>
+	"functions.h"
 
 1544201169 source:c:\users\jsvensson\documents\github\linter_project\main.c
 	<stdio.h>
@@ -45,7 +46,14 @@
 	<dirent.h>
 	<string.h>
 
-1544367565 source:c:\users\svensson jeremy\documents\github\linter_project\configfunctions.c
+1544450509 source:c:\users\svensson jeremy\documents\github\linter_project\configfunctions.c
+	<stdio.h>
+	<stdlib.h>
+	<dirent.h>
+	<string.h>
+	"functions.h"
 
 1544368106 c:\users\svensson jeremy\documents\github\linter_project\configfunctions.h
+
+1544450272 c:\users\svensson jeremy\documents\github\linter_project\functions.h
 
