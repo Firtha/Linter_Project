@@ -5,6 +5,11 @@
 #include "functions.h"          //!         Michael
 
 
+#define RED   "\e[31m"
+#define GRN   "\e[32m"
+#define LMAG  "\e[95m"
+#define RESET "\e[39m"
+
 /*
     LES REGLES
 ---------------------------------------------------------------
@@ -406,12 +411,12 @@ void verifSourceCode(char* path, int* rulesValues){
     char line[512];
     for(i=0;i<nbLines+1;i++){
         x = 0;
-        printf("%d ",i+1);
+        //printf("%d ",i+1);
         if(i+1 < 100){
-            printf(" ");
+            //printf(" ");
         }
         if(i+1 < 10){
-            printf(" ");
+            //printf(" ");
         }
 
 
@@ -425,27 +430,32 @@ void verifSourceCode(char* path, int* rulesValues){
         }
         line[x] = '\0';
         nbChar++;
-        printf(": %s\n",line);
+        // printf(": %s\n",line);
+
+        int isDisplayed = 0;
 
         // Regle n°5 de nombre de caracteres maximum pour une ligne
         if(rulesValues[5] > 0){
             if(x > rulesValues[5] && i < nbLines){
-                printf("!! Warning Rule 5 : Too many chars on line  (%d > %d)\n\n", x, rulesValues[5]);
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 5 : %sToo many chars on line  (%d > %d)%s\n", GRN, RESET, GRN, i, RESET, LMAG, x, rulesValues[5], RESET);
+                isDisplayed++;
             }
         }
 
         // Regle n°8 de non declaration multiple de variable sur une ligne
         if(rulesValues[8] > 0){
             if(multiDeclarLines[i] > 1 && i < nbLines){
-                printf("!! Warning Rule 8 : Multi Declaration spotted (%d declaration)\n\n",multiDeclarLines[i]);
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 8 : %sMulti Declaration spotted (%d declaration)%s\n", GRN, RESET, GRN, i, RESET, LMAG, multiDeclarLines[i], RESET);
+                isDisplayed++;
             }
         }
 
         int isAlreadyDeclared = 0;
-        // Regle a définir
+        // Regle n°16 variable doublement(minimum) déclarés
         if(rulesValues[16] > 0){
             if(tabOfLinesForDoubleDeclar[i] > 0 && i < nbLines){
-                printf("!! Warning Bonus Rule 16 : Var already declared in scope\n");
+                printf("!! %s[ERROR]%s at line %s %d %s Bonus Rule 16 : %sVar already declared in scope%s\n", RED, RESET, RED, i, RESET, LMAG, RESET);
+                isDisplayed++;
                 isAlreadyDeclared = 1;
             }
         }
@@ -453,8 +463,21 @@ void verifSourceCode(char* path, int* rulesValues){
         // Regle n°9 concernant les variables déclarées mais inutilisées
         if(rulesValues[9] > 0 && isAlreadyDeclared == 0){
             if(unusedVars[i] > 0 && i < nbLines){
-                printf("!! Warning Rule 9 : Unused var spotted (%d vars unused on line)\n\n",unusedVars[i]);
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 9 : %sUnused var spotted (%d vars unused on line)%s\n", GRN, RESET, GRN, i, RESET, LMAG, unusedVars[i], RESET);
+                isDisplayed++;
             }
+        }
+
+        // Regle n°2 Operator Spacing
+        if(rulesValues[1] > 0){
+            if(operatorSpacing(line) && i < nbLines) {
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 2 : %s Operator spacing missing %s\n", GRN, RESET, GRN, i, RESET, LMAG, RESET);
+                isDisplayed++;
+            }
+        }
+
+        if(isDisplayed > 0){
+            printf("\n");
         }
     }
 
@@ -467,6 +490,28 @@ void verifSourceCode(char* path, int* rulesValues){
     free(fileContent);
 
     system("pause");
+}
+
+//! - OPERATOR SPACING
+
+int operatorSpacing(char* line){
+    int length=strlen(line);
+    int x;
+    int is_display=0;
+    for(x = 0;x < length; x++){
+        if (line[x] == '+' || line[x] == '-' || line[x] == '*' || line[x] == '/' || line[x] == '%'||line[x] == '=') {
+            if(line[x+1] == '+' || line[x+1] == '-' || line[x+1]=='*'||line[x-1] == '+'||line[x-1] == '-' ||line[x-1] == '*'||line[x+1] == '='||line[x-1] == '='){
+                //JESUISREMI
+            }else if(line[x-1] != ' ' &&  line[x+1] != ' '){
+                is_display=1;
+            }
+        }
+    }
+
+    if (is_display == 1){
+        return 1;
+    }
+    return 0;
 }
 
 //!  - VARIABLE DECLAREE MAIS PAS UTILISEE

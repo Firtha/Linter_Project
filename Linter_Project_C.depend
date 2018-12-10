@@ -57,3 +57,12 @@
 
 1544450272 c:\users\svensson jeremy\documents\github\linter_project\functions.h
 
+1544468431 source:c:\users\mickey\documents\github\linter_project\main.c
+	<stdio.h>
+	<stdlib.h>
+	<dirent.h>
+	<string.h>
+	"functions.h"
+
+1544460857 c:\users\mickey\documents\github\linter_project\functions.h
+
