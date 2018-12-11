@@ -98,3 +98,16 @@ lineLevels getStructWithLevelAndIdentifier(int targetLevel, int targetIdentifier
 lineLevels getSonStructWithLevelAndIdentifier(int targetLevel, int targetIdentifier, lineLevels currStruct, int* checkPointer);
 
 int varAlreadyDeclaredInScope(lineLevels* primaryStructs, int nbPrimaries, char* nameVar);
+
+// Fonctions relatives à la règle 15 (Problèmes d'affectation)
+
+int getAffectWithWrongType(char* line, int currLine, lineLevels* primaryStructs, int nbPrimaries);
+int compareWithSonsVar(char* varName, lineLevels currStruct, int currLine);
+int compareWithAllVars(char* varName, lineLevels* primaryStructs, int nbPrimaries, int currLine);
+int verifIfInteger(char* stringSrc);
+char** varExtractFromLine(char* line, lineLevels* primaryStructs, int nbPrimaries, int* nbGets, int currLine);
+
+// Fonctions règles P2
+int operatorSpacing(char* line);
+int bracketEndOfLine(char* line);
+int verifyComment(char* line);

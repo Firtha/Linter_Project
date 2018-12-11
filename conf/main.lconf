@@ -7,7 +7,7 @@ test.lconf
 - operators-spacing = on
 - comma-spacing = off
 - indent = off
-- comments-header = off
+- comments-header = on
 - max-line-numbers = 60
 - max-file-line-numbers = 50
 - no-trailing-spaces = off

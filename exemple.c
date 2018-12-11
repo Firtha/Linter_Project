@@ -1,3 +1,5 @@
+// Alo
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -21,7 +23,8 @@ int main(int argc, char** argv){
     
     int i;
     int y, x;
-    for(i=0;i<15;i++){
+    for(i=0;i<15;i++)
+    {
         char* oneWord = malloc(sizeof(char)*15);
         char moreWord = 'c';
         int rightTest;
@@ -469,46 +472,4 @@ char** agregateConfExcluded(int nbExtend, char** fileNames, int nbFilesExcluded)
     free(tmpListFiles);
 
     return listOfFiles;
-}
-
-int* getMultiDeclarOnLine(char* fileContent, lineLevels* primaryStructs, int nbPrimaryLevels, int nbLines){
-    int* tabOfLines = malloc(sizeof(int)*nbLines);
-    int i;
-
-    for(i=0;i<nbLines;i++){
-        tabOfLines[i] = 0;
-    }
-
-    for(i=0;i<nbPrimaryLevels;i++){
-        tabOfLines = structNbVarsOnLines(primaryStructs[i], tabOfLines);
-    }
-
-    return tabOfLines;
-}
-
-int* getVarsDeclaredButUnused(char* fileContent, int nbLines, lineLevels* primaryStructs, int nbPrimaries){
-    int* tabOfLines = malloc(sizeof(int)*nbLines);
-
-    int* nbGlobal = primaryStructs[0].nbGlobal;
-    char*** globalVars = primaryStructs[0].globalVars;
-
-    int i;
-    int y;
-
-    for(i=0;i<nbLines;i++){
-        tabOfLines[i] = 0;
-    }
-
-    //! Verif avec les variables globales
-    for(i=0;i<6;i++){
-        for(y=0;y<nbGlobal[i];y++){
-        }
-    }
-
-    //! Verif sur chaque primaires et ses filles
-    for(i=0;i<nbPrimaries;i++){
-        tabOfLines = goToStructSonsForCheck(primaryStructs, nbPrimaries, primaryStructs[i], tabOfLines, 2, fileContent);
-    }
-
-    return tabOfLines;
 }

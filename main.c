@@ -1,14 +1,16 @@
 #include <stdio.h>              //! Projet Linter - Langage C
 #include <stdlib.h>             //!     Etudiants :
-#include <dirent.h>             //!         Svensson Jeremy
-#include <string.h>             //!         Remy
-#include "functions.h"          //!         Michael
+#include <dirent.h>             //!     Svensson Jeremy
+#include <string.h>             //!     Skonieczny Remi
+                                //!     Proust Mickaël
 
 
 #define RED   "\e[31m"
 #define GRN   "\e[32m"
 #define LMAG  "\e[95m"
 #define RESET "\e[39m"
+
+#include "functions.h"
 
 /*
     LES REGLES
@@ -103,22 +105,6 @@ int* getVarsUsedButUndeclared(){
     //! Il faut trouver des mots sans parenthèses dérrière (fonction ou condition)
 
     //return tabOfLines;
-    return 0;
-}
-
-//!  - AFFECTION DE VARIABLE AVEC LES BONS TYPES
-//!     o Chercher une affectation de variable, identifié les deux (ou plus) variables entrant en jeu, repérer le type et comparer
-//!     o >> Chercher dans le niveau courant et les niveaux parents <<
-int* getAffectWithWrongType(){
-
-    //! Recherche d'affectation de variables (var1 = var2 OU var1 = var2 + var3, ect...)
-    //! Pour chaque affectation repérée : Isoler les deux variables
-    //!  - Rechercher la variable au sein des tableaux de variables des structures accessibles
-    //!  - Recupérer le type associé a chaque variable
-    //!  - Comparer les deux types (ou plus) récupérés, si ils sont différents : Erreur sur ligne
-
-    //! NB : Prévoir un comportement lorsque la variable a rechercher est utilisé mais pas déclarée, et donc introuvable
-
     return 0;
 }
 
@@ -395,19 +381,18 @@ void verifSourceCode(char* path, int* rulesValues){
 
     int* unusedVars = getVarsDeclaredButUnused(fileContent, nbLines, primaryStructs, nbPrimaryLevels);
 
-    // Regle n°6 de nombre de ligne maximum pour un fichier
+    // Regle n°7 de nombre de ligne maximum pour un fichier
     if(rulesValues[6] > 0){
         if(nbLines > rulesValues[6]){
             printf("\n!! Warning Rule 6 : Too many lines for file (%d > %d)\n\n", nbLines, rulesValues[6]);
         }
     }
 
-    printf("Le fichier %s contient %d lignes\n\n", path, nbLines);
-
     //! TRAITEMENT DU FICHIER LIGNE PAR LIGNE POUR LA PLUPART DES REGLES
 
     int x;
     int nbChar = 0;
+    int commentCount = 0;
     char line[512];
     for(i=0;i<nbLines+1;i++){
         x = 0;
@@ -434,7 +419,23 @@ void verifSourceCode(char* path, int* rulesValues){
 
         int isDisplayed = 0;
 
-        // Regle n°5 de nombre de caracteres maximum pour une ligne
+        // Regle n°5 de vérification de présence d'un commentaire multi-ligne en entête
+
+            if(rulesValues[4] > 0 && i < 10){
+                commentCount += verifyComment(line);
+            } else if (rulesValues[4] > 0 && i == 10 && commentCount < 4){
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 4 : %s No multi-lined comments detected %s\n", GRN, RESET, GRN, i, RESET, LMAG, RESET);
+                isDisplayed++;
+            }
+        // Regle n°15 Problemes d'affectation
+        if(rulesValues[14] > 0){
+            if(i < nbLines){
+                getAffectWithWrongType(line, i, primaryStructs, nbPrimaryLevels);
+                isDisplayed++;
+            }
+        }
+
+        // Regle n°6 de nombre de caracteres maximum pour une ligne
         if(rulesValues[5] > 0){
             if(x > rulesValues[5] && i < nbLines){
                 printf("!! %s[WARNING]%s at line %s %d %s Rule 5 : %sToo many chars on line  (%d > %d)%s\n", GRN, RESET, GRN, i, RESET, LMAG, x, rulesValues[5], RESET);
@@ -442,7 +443,7 @@ void verifSourceCode(char* path, int* rulesValues){
             }
         }
 
-        // Regle n°8 de non declaration multiple de variable sur une ligne
+        // Regle n°9 de non declaration multiple de variable sur une ligne
         if(rulesValues[8] > 0){
             if(multiDeclarLines[i] > 1 && i < nbLines){
                 printf("!! %s[WARNING]%s at line %s %d %s Rule 8 : %sMulti Declaration spotted (%d declaration)%s\n", GRN, RESET, GRN, i, RESET, LMAG, multiDeclarLines[i], RESET);
@@ -451,7 +452,7 @@ void verifSourceCode(char* path, int* rulesValues){
         }
 
         int isAlreadyDeclared = 0;
-        // Regle n°16 variable doublement(minimum) déclarés
+        // Regle n°17 variable doublement(minimum) déclarés
         if(rulesValues[16] > 0){
             if(tabOfLinesForDoubleDeclar[i] > 0 && i < nbLines){
                 printf("!! %s[ERROR]%s at line %s %d %s Bonus Rule 16 : %sVar already declared in scope%s\n", RED, RESET, RED, i, RESET, LMAG, RESET);
@@ -460,7 +461,7 @@ void verifSourceCode(char* path, int* rulesValues){
             }
         }
 
-        // Regle n°9 concernant les variables déclarées mais inutilisées
+        // Regle n°10 concernant les variables déclarées mais inutilisées
         if(rulesValues[9] > 0 && isAlreadyDeclared == 0){
             if(unusedVars[i] > 0 && i < nbLines){
                 printf("!! %s[WARNING]%s at line %s %d %s Rule 9 : %sUnused var spotted (%d vars unused on line)%s\n", GRN, RESET, GRN, i, RESET, LMAG, unusedVars[i], RESET);
@@ -473,6 +474,13 @@ void verifSourceCode(char* path, int* rulesValues){
             if(operatorSpacing(line) && i < nbLines) {
                 printf("!! %s[WARNING]%s at line %s %d %s Rule 2 : %s Operator spacing missing %s\n", GRN, RESET, GRN, i, RESET, LMAG, RESET);
                 isDisplayed++;
+            }
+        }
+
+        // Regle n°1 Bracket End of Line
+        if(rulesValues[0] > 0){
+            if(bracketEndOfLine(line) && i < nbLines) {
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 1 : %s Bracket must end the line  %s\n", GRN, RESET, GRN, i, RESET, LMAG, RESET);
             }
         }
 
@@ -497,22 +505,64 @@ void verifSourceCode(char* path, int* rulesValues){
 int operatorSpacing(char* line){
     int length=strlen(line);
     int x;
-    int is_display=0;
+    int is_displayed=0;
     for(x = 0;x < length; x++){
         if (line[x] == '+' || line[x] == '-' || line[x] == '*' || line[x] == '/' || line[x] == '%'||line[x] == '=') {
             if(line[x+1] == '+' || line[x+1] == '-' || line[x+1]=='*'||line[x-1] == '+'||line[x-1] == '-' ||line[x-1] == '*'||line[x+1] == '='||line[x-1] == '='){
                 //JESUISREMI
             }else if(line[x-1] != ' ' &&  line[x+1] != ' '){
-                is_display=1;
+                is_displayed=1;
             }
         }
     }
-
-    if (is_display == 1){
-        return 1;
-    }
-    return 0;
+    return is_displayed;
 }
+
+//! - ACCOLADE EN FIN DE LIGNE
+
+int bracketEndOfLine(char* line){
+    int size = strlen(line);
+    int i;
+    int display = 0;
+    int isFilled = 0;
+
+    for (i=0; i<size; i++){
+        if( line[i] == '{' && isFilled == 0) {
+            display = 1;
+        }
+        // 9 <=> Code ASCII de la tabulation
+        if( line[i] != ' ' && line[i] != 9) {
+            isFilled++;
+        }
+    }
+
+    return display;
+}
+
+//! - Présence d'un commentaire multi-lignes en entête
+
+int verifyComment(char* line){
+    int x = 0;
+    int count = 0;
+
+    while(line[x] != '\0'){
+        if(line[x] == '/' && line[x+1] == '/'){
+            count++;
+        }
+        if(line[x] == '/' && line[x+1] == '*'){
+            count = 2;
+            while(line[x+1] != '\0'){
+                if(line[x] == '*' && line[x+1] == '/'){
+                    count--;
+                }
+                x++;
+            }
+        }
+        x++;
+    }
+    return count;
+}
+
 
 //!  - VARIABLE DECLAREE MAIS PAS UTILISEE
 int checkIfVarUsedInStructAndSons(char* fileContent, char* nameVar, lineLevels* primaryStructs, int nbPrimaries, int isGlobal, int levelNumber, int identifier){
@@ -2396,4 +2446,291 @@ char** agregateConfExcluded(int nbExtend, char** fileNames, int nbFilesExcluded)
     free(tmpListFiles);
 
     return listOfFiles;
+}
+
+int compareWithSonsVar(char* varName, lineLevels currStruct, int currLine){
+    int typeFinded;
+
+    if(currLine > currStruct.startingLine && currLine < currStruct.endingLine){
+        int* nbVars = currStruct.nbVars;
+        char*** currVars = currStruct.declaredVars;
+        int j;
+        int y;
+        for(y=0;y<6;y++){
+            for(j=0;j<nbVars[y];j++){
+                int lineTarget = getLineOfVar(currVars[y][j]);
+                if(lineTarget < currLine){
+                    char* nameTarget = extractNameFromNameVar(currVars[y][j]);
+                    if(strcmp(nameTarget,varName) == 0){
+                        free(nameTarget);
+                        return y;
+                    }
+                }
+            }
+        }
+
+        int nbSons = currStruct.nbSons;
+        for(y=0;y<nbSons;y++){
+            typeFinded = compareWithSonsVar(varName, currStruct.sonStructs[y], currLine);
+            if(typeFinded > -1){
+                return typeFinded;
+            }
+        }
+    }
+
+    return -1;
+}
+
+int compareWithAllVars(char* varName, lineLevels* primaryStructs, int nbPrimaries, int currLine){
+    //! RENVOI UN ENTIER CORRESPONDANT AU TYPE DANS LA LISTE
+    //!  "int","float","char","double","long","struct"
+    int i;
+    int x;
+
+    int typeFinded;
+
+    int* nbGlobal = primaryStructs[0].nbGlobal;
+    char*** globalVars = primaryStructs[0].globalVars;
+
+    for(i=0;i<6;i++){
+        for(x=0;x<nbGlobal[i];x++){
+            int lineTarget = getLineOfVar(globalVars[i][x]);
+            if(lineTarget < currLine){
+                char* nameTarget = extractNameFromNameVar(globalVars[i][x]);
+                if(strcmp(nameTarget,varName) == 0){
+                    free(nameTarget);
+                    return i;
+                }
+            }
+        }
+    }
+
+    for(i=0;i<nbPrimaries;i++){
+        if(currLine > primaryStructs[i].startingLine && currLine < primaryStructs[i].endingLine){
+            int* nbVars = primaryStructs[i].nbVars;
+            char*** currVars = primaryStructs[i].declaredVars;
+            int j;
+            int y;
+            for(y=0;y<6;y++){
+                for(j=0;j<nbVars[y];j++){
+                    int lineTarget = getLineOfVar(currVars[y][j]);
+                    if(lineTarget < currLine){
+                        char* nameTarget = extractNameFromNameVar(currVars[y][j]);
+                        if(strcmp(nameTarget,varName) == 0){
+                            free(nameTarget);
+                            return y;
+                        }
+                    }
+                }
+            }
+            int nbSons = primaryStructs[i].nbSons;
+            for(y=0;y<nbSons;y++){
+                typeFinded = compareWithSonsVar(varName, primaryStructs[i].sonStructs[y], currLine);
+                if(typeFinded > -1){
+                    return typeFinded;
+                }
+            }
+        }
+    }
+
+    //! Si aucun type n'a été trouvé
+    return -1;
+}
+
+int verifIfInteger(char* stringSrc){
+    int i;
+    int length = strlen(stringSrc);
+
+    for(i=0;i<length;i++){
+        if(stringSrc[i] == ','){
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+char** varExtractFromLine(char* line, lineLevels* primaryStructs, int nbPrimaries, int* nbGets, int currLine){
+    char types[6][15] = {"int","float","char","double","long","struct"};
+    int typesFinded[6] = {0};
+
+    int i;
+    int length = strlen(line);
+    int simpleQuote = 0;
+    int doubleQuote = 0;
+    int comment = 0;
+    int isFunc = 0;
+
+    //! Doit repérer des valeurs numériques (décimales ?) / affectation de char 'c' ou char* "salut"
+    for(i=0;i<length;i++){
+        if(line[i] == 34 && doubleQuote == 0){
+            doubleQuote = 1;
+        }else if(line[i] == 34 && doubleQuote == 1){
+            doubleQuote = 0;
+        }
+        if(line[i] == 39 && simpleQuote == 0){
+            simpleQuote = 1;
+        }else if(line[i] == 39 && simpleQuote == 1){
+            simpleQuote = 0;
+        }
+        if(line[i] == '/' && line[i+1] == '/'){
+            comment = 1;
+        }
+        if(line[i] == '(' || line[i] == '[' || line[i] == '{'){
+            isFunc++;
+        }
+        if(line[i] == ')' || line[i] == ']' || line[i] == '}'){
+            isFunc--;
+        }
+
+
+        if(doubleQuote == 0 && simpleQuote == 0 && comment == 0 && isFunc == 0){
+            if(isText(line[i]) && isText(line[i-1]) == 0){
+                int x = 0;
+                int isOnlyNum = 1;
+                char tmpVarName[64];
+                while(isText(line[i+x])){
+                    tmpVarName[x] = line[i+x];
+                    if(line[i+x] > 60){
+                        isOnlyNum = 0;
+                    }
+                    x++;
+                }
+                tmpVarName[x] = '\0';
+
+                i = i + x - 1;
+
+                int isFunc = 0;
+                while(line[i] == ' '){
+                    i++;
+                }
+                if(line[i] == '('){
+                    isFunc = 1;
+                }
+
+                if(isFunc == 0){
+                    if(isOnlyNum){
+                        int isInteger = verifIfInteger(tmpVarName);
+                        if(isInteger){
+                            typesFinded[0]++;
+                        }else{
+                            typesFinded[1]++;
+                        }
+
+                    }else{
+                        int isType = 0;
+                        int y;
+                        for(y=0;y<6;y++){
+                            if(strcmp(types[y],tmpVarName) == 0){
+                                isType = 1;
+                            }
+                        }
+
+                        if(isType == 0){
+                            int typeFinded = compareWithAllVars(tmpVarName, primaryStructs, nbPrimaries, currLine);
+                            if(typeFinded > -1){
+                                typesFinded[typeFinded]++;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    int nbTypes = 0;
+    for(i=0;i<6;i++){
+        if(typesFinded[i] > 0){
+            nbTypes++;
+        }
+    }
+
+    char** typesStrings = malloc(sizeof(char*)*nbTypes);
+    for(i=0;i<nbTypes;i++){
+        typesStrings[i] = malloc(sizeof(char)*16);
+    }
+    int nbGet = 0;
+    for(i=0;i<6;i++){
+        if(typesFinded[i] > 0){
+            strcpy(typesStrings[nbGet],types[i]);
+            nbGet++;
+        }
+    }
+
+    *nbGets = nbGet;
+
+    return typesStrings;
+}
+
+//!  - AFFECTION DE VARIABLE AVEC LES BONS TYPES
+//!     o Chercher une affectation de variable, identifié les deux (ou plus) variables entrant en jeu, repérer le type et comparer
+//!     o >> Chercher dans le niveau courant et les niveaux parents <<
+int getAffectWithWrongType(char* line, int currLine, lineLevels* primaryStructs, int nbPrimaries){
+    int i;
+    int x;
+
+    int length = strlen(line);
+    int simpleQuote = 0;
+    int doubleQuote = 0;
+    int comment = 0;
+
+    for(i=0;i<length;i++){
+        if(line[i] == 34 && doubleQuote == 0){
+            doubleQuote = 1;
+        }else if(line[i] == 34 && doubleQuote == 1){
+            doubleQuote = 0;
+        }
+        if(line[i] == 39 && simpleQuote == 0){
+            simpleQuote = 1;
+        }else if(line[i] == 39 && simpleQuote == 1){
+            simpleQuote = 0;
+        }
+        if(line[i] == '/' && line[i+1] == '/'){
+            comment = 1;
+        }
+
+        if(doubleQuote == 0 && simpleQuote == 0 && comment == 0){
+            //! Si '=' et pas <= ou >= ou += .... ainsi que => ou =< ou =+ ou =-....
+            if(line[i] == '=' && line[i-1] != '=' && line[i-1] != '<' && line[i-1] != '>' && line[i-1] != '+' && line[i-1] != '-' && line[i-1] != '*' && line[i+1] != '=' && line[i+1] != '<' && line[i+1] != '>' && line[i+1] != '+' && line[i+1] != '-' && line[i+1] != '*'){
+                int nbVars;
+                char** typeExtracted = varExtractFromLine(line, primaryStructs, nbPrimaries, &nbVars, currLine);
+
+                if(nbVars > 1){
+
+                        //! VERIFIER QUE LES DEUX TYPES NE SOIENT PAS COMPATIBLES
+
+                    char types[6][15] = {"int","float","char","double","long","struct"};
+
+                    int isInteger = 1;
+                    for(x=0;x<nbVars;x++){
+                        if(strcmp(typeExtracted[x], types[1]) == 0 || strcmp(typeExtracted[x], types[2]) == 0 || strcmp(typeExtracted[x], types[5]) == 0){
+                            isInteger = 0;
+                        }
+                    }
+
+                    if(isInteger == 0){
+                        printf("!! %s[ERROR]%s at line %s %d %s Rule 5 : %s Wrong type in affect %d types %s", RED, RESET, RED, i, RESET, LMAG, nbVars, RESET);
+                        for(x=0;x<nbVars;x++){
+                            printf("- %s ",typeExtracted[x]);
+                        }
+                        printf("\n");
+                        return 1;
+                    }else{
+                        printf("!! %s[WARNING]%s at line %s %d %s Rule 5 : %s Wrong type in affect %d types %s", GRN, RESET, GRN, i, RESET, LMAG, nbVars, RESET);
+                        for(x=0;x<nbVars;x++){
+                            printf("- %s ",typeExtracted[x]);
+                        }
+                        printf("\n");
+                        return 1;
+                    }
+                }
+
+                for(x=0;x<nbVars;x++){
+                    free(typeExtracted[x]);
+                }
+                free(typeExtracted);
+            }
+        }
+    }
+    return 0;
 }
