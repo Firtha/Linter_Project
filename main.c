@@ -80,46 +80,17 @@ PARTIE BONUS :
 
 */
 
-//!  - VARIABLE UTILISEE MAIS PAS DECLAREE
-//!     o Chercher, dans des affectations / opération / envoi de paramètres, des noms de variable distincts et comparer aux vars
-//!     o >> Chercher dans le niveau courant et les niveaux parents <<
-int* getVarsUsedButUndeclared(){
-    //int* tabOfLines = malloc(sizeof(int)*nbLines);
-
-    //int* nbGlobal = primaryStructs[0].nbGlobal;
-    //char*** globalVars = primaryStructs[0].globalVars;
-
-    //int i;
-    //int y;
-
-    //for(i=0;i<nbLines;i++){
-    //    tabOfLines[i] = 0;
-    //}
-
-    //! Recherche de variables au sein du code
-
-    //! Pour chaque variable trouvée : vérifier avec toutes les variables de portées accessibles
-    //!  - Globales (situées au dessus)
-    //!  - De la structure courante et des parentes
-
-    //! Il faut trouver des mots sans parenthèses dérrière (fonction ou condition)
-
-    //return tabOfLines;
-    return 0;
-}
-
 int main(int argc, char **argv)
 {
     char initConf[128];
     char path[128];
 
     if(argc != 3){
-        printf("Pas assez de paramètres\n");
-        printf("L'appel du programme doit etre :\n./nomProg dossierConfig dossierCible\n\n\n\n");
+        printf("L'appel du programme doit etre fait ainsi :\n./nomProg dossierConfig dossierCible\n\n\n\n");
         strcpy(initConf, "conf");
         strcpy(path, ".");
 
-        printf("Voulez vous executer le programme selon ses parametres par defaut ?\n1 - Oui\n2 - Non\n");
+        printf("Voulez vous executer le programme selon ses parametres par defaut ?\n(Cela necessite d'avoir le dossier conf accessible)\n1 - Oui\n2 - Non\n");
         int userChx = 0;
         while(userChx < 1 || userChx > 2){
             printf(">> ");
@@ -128,8 +99,6 @@ int main(int argc, char **argv)
 
         if(userChx == 1){
             system("cls");
-            printf("Lancement du programme selon la configuration par defaut...\n\n");
-            system("pause");
         }else{
             system("cls");
             printf("Veuillez relancer le programme avec les bons parametres.\n\n");
