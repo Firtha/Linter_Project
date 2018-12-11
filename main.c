@@ -430,8 +430,9 @@ void verifSourceCode(char* path, int* rulesValues){
         // Regle n°15 Problemes d'affectation
         if(rulesValues[14] > 0){
             if(i < nbLines){
-                getAffectWithWrongType(line, i, primaryStructs, nbPrimaryLevels);
-                isDisplayed++;
+                if(getAffectWithWrongType(line, i, primaryStructs, nbPrimaryLevels)){
+                    isDisplayed++;
+                }
             }
         }
 
