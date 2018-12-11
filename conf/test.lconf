@@ -5,7 +5,7 @@ nop.lconf
 =rules
 - array-bracket-eol = on
 - operators-spacing = on
-- comma-spacing = off
+- comma-spacing = on
 - indent = off
 - comments-header = off
 - max-line-numbers = 25

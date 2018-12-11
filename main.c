@@ -384,7 +384,7 @@ void verifSourceCode(char* path, int* rulesValues){
     // Regle n°7 de nombre de ligne maximum pour un fichier
     if(rulesValues[6] > 0){
         if(nbLines > rulesValues[6]){
-            printf("\n!! Warning Rule 6 : Too many lines for file (%d > %d)\n\n", nbLines, rulesValues[6]);
+            printf("\n!! Warning Rule 7 : Too many lines for file (%d > %d)\n\n", nbLines, rulesValues[6]);
         }
     }
 
@@ -424,7 +424,7 @@ void verifSourceCode(char* path, int* rulesValues){
             if(rulesValues[4] > 0 && i < 10){
                 commentCount += verifyComment(line);
             } else if (rulesValues[4] > 0 && i == 10 && commentCount < 4){
-                printf("!! %s[WARNING]%s at line %s %d %s Rule 4 : %s No multi-lined comments detected %s\n", GRN, RESET, GRN, i+1, RESET, LMAG, RESET);
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 5 : %s No multi-lined comments detected %s\n", GRN, RESET, GRN, i+1, RESET, LMAG, RESET);
                 isDisplayed++;
             }
         // Regle n°15 Problemes d'affectation
@@ -439,7 +439,7 @@ void verifSourceCode(char* path, int* rulesValues){
         // Regle n°6 de nombre de caracteres maximum pour une ligne
         if(rulesValues[5] > 0){
             if(x > rulesValues[5] && i < nbLines){
-                printf("!! %s[WARNING]%s at line %s %d %s Rule 5 : %sToo many chars on line  (%d > %d)%s\n", GRN, RESET, GRN, i+1, RESET, LMAG, x, rulesValues[5], RESET);
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 6 : %sToo many chars on line  (%d > %d)%s\n", GRN, RESET, GRN, i+1, RESET, LMAG, x, rulesValues[5], RESET);
                 isDisplayed++;
             }
         }
@@ -447,7 +447,7 @@ void verifSourceCode(char* path, int* rulesValues){
         // Regle n°9 de non declaration multiple de variable sur une ligne
         if(rulesValues[8] > 0){
             if(multiDeclarLines[i] > 1 && i < nbLines){
-                printf("!! %s[WARNING]%s at line %s %d %s Rule 8 : %sMulti Declaration spotted (%d declaration)%s\n", GRN, RESET, GRN, i+1, RESET, LMAG, multiDeclarLines[i], RESET);
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 9 : %sMulti Declaration spotted (%d declaration)%s\n", GRN, RESET, GRN, i+1, RESET, LMAG, multiDeclarLines[i], RESET);
                 isDisplayed++;
             }
         }
@@ -456,7 +456,7 @@ void verifSourceCode(char* path, int* rulesValues){
         // Regle n°17 variable doublement(minimum) déclarés
         if(rulesValues[16] > 0){
             if(tabOfLinesForDoubleDeclar[i] > 0 && i < nbLines){
-                printf("!! %s[ERROR]%s at line %s %d %s Bonus Rule 16 : %sVar already declared in scope%s\n", RED, RESET, RED, i+1, RESET, LMAG, RESET);
+                printf("!! %s[ERROR]%s at line %s %d %s Bonus Rule 17 : %sVar already declared in scope%s\n", RED, RESET, RED, i+1, RESET, LMAG, RESET);
                 isDisplayed++;
                 isAlreadyDeclared = 1;
             }
@@ -465,7 +465,23 @@ void verifSourceCode(char* path, int* rulesValues){
         // Regle n°10 concernant les variables déclarées mais inutilisées
         if(rulesValues[9] > 0 && isAlreadyDeclared == 0){
             if(unusedVars[i] > 0 && i < nbLines){
-                printf("!! %s[WARNING]%s at line %s %d %s Rule 9 : %sUnused var spotted (%d vars unused on line)%s\n", GRN, RESET, GRN, i+1, RESET, LMAG, unusedVars[i], RESET);
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 10 : %sUnused var spotted (%d vars unused on line)%s\n", GRN, RESET, GRN, i+1, RESET, LMAG, unusedVars[i], RESET);
+                isDisplayed++;
+            }
+        }
+
+        // Regle n°8 Space Before Chariot
+        if(rulesValues[7] > 0){
+            if(spaceBeforeChariot(line) && i < nbLines){
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 8 : %s Space missing before carriage return %s\n", GRN, RESET, GRN, i+1, RESET, LMAG, RESET);
+                isDisplayed++;
+            }
+        }
+
+        // Regle n°3 Comma Spacing
+        if(rulesValues[2] > 0){
+            if(commaSpacing(line) && i < nbLines){
+                printf("!! %s[WARNING]%s at line %s %d %s Rule 3 : %s Comma-Spacing missing %s\n", GRN, RESET, GRN, i+1, RESET, LMAG, RESET);
                 isDisplayed++;
             }
         }
@@ -517,6 +533,32 @@ int operatorSpacing(char* line){
         }
     }
     return is_displayed;
+}
+
+//! - ESPACE AVANT RETOUR CHARIOT
+
+int spaceBeforeChariot(char* line){
+    int x = strlen(line);
+    if(line[x-2] == ' '){
+        return 1;
+    }
+    return 0;
+}
+
+//! - ESPACE A DROITE DE LA VIRGULE
+
+int commaSpacing(char* line){
+    int size=strlen(line);
+    int i;
+
+    for(i=0; i<size; i++){
+        if(line[i] == ','){
+            if(line[i+1] != ' '){
+                return 1;
+            }
+        }
+    }
+    return 0;
 }
 
 //! - ACCOLADE EN FIN DE LIGNE
@@ -2710,14 +2752,14 @@ int getAffectWithWrongType(char* line, int currLine, lineLevels* primaryStructs,
                     }
 
                     if(isInteger == 0){
-                        printf("!! %s[ERROR]%s at line %s %d %s Rule 5 : %s Wrong type in affect %d types %s", RED, RESET, RED, currLine+1, RESET, LMAG, nbVars, RESET);
+                        printf("!! %s[ERROR]%s at line %s %d %s Rule 15 : %s Wrong type in affect %d types %s", RED, RESET, RED, currLine+1, RESET, LMAG, nbVars, RESET);
                         for(x=0;x<nbVars;x++){
                             printf("- %s ",typeExtracted[x]);
                         }
                         printf("\n");
                         return 1;
                     }else{
-                        printf("!! %s[WARNING]%s at line %s %d %s Rule 5 : %s Wrong type in affect %d types %s", GRN, RESET, GRN, currLine+1, RESET, LMAG, nbVars, RESET);
+                        printf("!! %s[WARNING]%s at line %s %d %s Rule 15 : %s Wrong type in affect %d types %s", GRN, RESET, GRN, currLine+1, RESET, LMAG, nbVars, RESET);
                         for(x=0;x<nbVars;x++){
                             printf("- %s ",typeExtracted[x]);
                         }

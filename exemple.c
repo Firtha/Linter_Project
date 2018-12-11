@@ -11,7 +11,7 @@ int returnVar();
 
 globalVar = stateVar + globalNumber;
 
-int main(int argc, char** argv){
+int main(int argc,char** argv){
     char tab[6][15] = {"Hello","World","I","feel","really","great"}, tabBis[6] = "Hello";
     
     printf("Hello World !");

@@ -111,3 +111,5 @@ char** varExtractFromLine(char* line, lineLevels* primaryStructs, int nbPrimarie
 int operatorSpacing(char* line);
 int bracketEndOfLine(char* line);
 int verifyComment(char* line);
+int spaceBeforeChariot(char* line);
+int commaSpacing(char* line);
