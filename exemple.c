@@ -33,6 +33,8 @@ int main(int argc,char** argv){
             int testingDeclar;
             int moreTesting;
             char moreWord;
+
+            moreTesting = moreWord + oneWord;
         }
         printf("Spacing test"); 
         if(y){
@@ -420,56 +422,4 @@ char** getConfExcluded(char* fileContent){
     }
 
     return excludedFiles;
-}
-
-char** agregateConfExcluded(int nbExtend, char** fileNames, int nbFilesExcluded){
-    char** listOfFiles;
-    char** tmpListFiles;
-    char* fileContent;
-    char* tmpName;
-
-    int i;
-    int y;
-    int x = 0;
-    int nbExcludOnFile;
-
-    listOfFiles = malloc(sizeof(char*) * nbFilesExcluded);
-    for(i=0;i<nbFilesExcluded;i++){
-        listOfFiles[i] = malloc(sizeof(char) * 256);
-    }
-
-    for(i=0;i<nbExtend;i++){
-        tmpName = malloc(sizeof(char) * 256);
-        strcpy(tmpName, "conf/");
-        strcat(tmpName, fileNames[i]);
-
-        fileContent = getFileContent(tmpName);
-
-        nbExcludOnFile = getNbFilesExcluded(fileContent);
-        tmpListFiles = getConfExcluded(fileContent);
-
-        for(y=0;y<nbExcludOnFile;y++){
-            strcpy(listOfFiles[x], tmpListFiles[y]);
-            x++;
-        }
-
-        free(fileContent);
-        free(tmpName);
-        free(tmpListFiles);
-    }
-
-    fileContent = getFileContent("conf/main.lconf");
-
-    nbExcludOnFile = getNbFilesExcluded(fileContent);
-    tmpListFiles = getConfExcluded(fileContent);
-
-    for(y=0;y<nbExcludOnFile;y++){
-        strcpy(listOfFiles[x], tmpListFiles[y]);
-        x++;
-    }
-
-    free(fileContent);
-    free(tmpListFiles);
-
-    return listOfFiles;
 }

@@ -5,19 +5,19 @@ test.lconf
 =rules
 - array-bracket-eol = on
 - operators-spacing = on
-- comma-spacing = off
-- indent = off
+- comma-spacing = on
+- indent = 3
 - comments-header = on
 - max-line-numbers = 60
 - max-file-line-numbers = 50
-- no-trailing-spaces = off
+- no-trailing-spaces = on
 
 - no-multi-declaration = on
 - unused-variable = on
-- undeclared-variable = off
-- no-prototype = off
-- unused-function = off
-- undeclared-function = off
+- undeclared-variable = on
+- no-prototype = on
+- unused-function = on
+- undeclared-function = on
 
 - variable-assignment-type = on
 - function-parameters-type = on
